@@ -228,7 +228,7 @@ double Matrix::sum() const {
     return total;
 }
 
-std::vector<double> Matrix::getRow(size_t row) {
+std::vector<double> Matrix::getRow(size_t row) const {
     if (row >= rows) {
         throw std::out_of_range("Row index out of range");
     }
