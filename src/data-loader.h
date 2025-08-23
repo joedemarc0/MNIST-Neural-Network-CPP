@@ -37,6 +37,7 @@ struct MNISTDataset {
  */
 class MNISTLoader {
     public:
+        // Constructors
         MNISTLoader() = default;
         ~MNISTLoader() = default;
 
@@ -52,10 +53,10 @@ class MNISTLoader {
          * converts labels to desired format, and calculates dataset statistics
          */
         MNISTDataset load_dataset(
-            const std::string& images_path,
-            const std::string& labels_path,
-            bool normalize=true,
-            bool one_hot=true
+                    const std::string& images_path,
+                    const std::string& labels_path,
+                    bool normalize=true,
+                    bool one_hot=true
         );
 
         /**

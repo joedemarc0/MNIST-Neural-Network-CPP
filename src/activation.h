@@ -13,12 +13,13 @@
 
 #include "matrix.h"
 
+// namespace of activation functions for use on each layer
 namespace activations {
-    // Sigmoid activations
+    // Sigmoid
     Matrix sigmoid(const Matrix& x);
     Matrix deriv_sigmoid(const Matrix& x);
 
-    // ReLU
+    // ReLu
     Matrix ReLU(const Matrix& x);
     Matrix deriv_ReLU(const Matrix& x);
 
