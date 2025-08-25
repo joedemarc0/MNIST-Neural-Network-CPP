@@ -14,22 +14,10 @@
 #include "matrix.h"
 
 // namespace of activation functions for use on each layer
-namespace activations {
-    // Sigmoid
-    Matrix sigmoid(const Matrix& x);
-    Matrix deriv_sigmoid(const Matrix& x);
-
-    // ReLu
-    Matrix ReLU(const Matrix& x);
-    Matrix deriv_ReLU(const Matrix& x);
-
-    // Leaky ReLU
-    Matrix leaky_ReLU(const Matrix& x);
-    Matrix deriv_leaky_ReLU(const Matrix& x);
-
-    // Softmax
-    Matrix softmax(const Matrix& x);
-    // No deriv function needed
+namespace Activations {
+    enum class ActivationType{ NONE, SIGMOID, RELU, LEAKY_RELU, SOFTMAX };
+    Matrix activate(const Matrix& x, ActivationType type);
+    Matrix deriv_activate(const Matrix& x, ActivationType type);
 }
 
 #endif // ACTIVATION_H
