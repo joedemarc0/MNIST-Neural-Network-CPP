@@ -32,7 +32,7 @@ struct MNISTDataset {
 
 
 /**
- * MNIST Data Loader Class
+ * @class MNISTDataLoader
  * Handles reading, processing, and managing MNIST ubyte data files
  */
 class MNISTLoader {

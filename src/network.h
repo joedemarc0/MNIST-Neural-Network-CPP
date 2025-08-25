@@ -85,7 +85,7 @@ class Network {
          * 
          * Cycles through layers backwards and updates layer weights and biases using layer.backward() function
          */
-        void backward(const Matrix& y);
+        void backward(const Matrix& y_true);
 
         std::vector<Layer> layers;
         size_t inputSize;
