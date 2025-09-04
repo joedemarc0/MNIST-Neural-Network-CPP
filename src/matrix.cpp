@@ -130,6 +130,22 @@ Matrix& Matrix::operator*=(double scalar) {
     return *this;
 }
 
+bool Matrix::operator==(const Matrix& other) const {
+    if (rows != other.getRows() || cols != other.getCols()) {
+        return false;
+    }
+    
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            if (data[i][j] != other(i, j)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 // Element-wise (Hadamard) product
 Matrix Matrix::hadamard(const Matrix& other) const {
     if (rows != other.rows || cols != other.cols) {

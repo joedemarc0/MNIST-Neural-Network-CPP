@@ -51,6 +51,9 @@ class Matrix {
         Matrix& operator-=(const Matrix& other);
         Matrix& operator*=(double scalar);
 
+        // Boolean operation
+        bool operator==(const Matrix& other) const;
+
         // Specialized operations
         Matrix hadamard(const Matrix& other) const;
         Matrix transpose() const;
