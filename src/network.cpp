@@ -1,36 +1,3 @@
-/** 
- * At this stage, we need to:
- * 1. Build the Model
- *  Store layers in order std::vector<Layer>
- *  Provide a way to add layers
- * 
- * 2. Forward pass
- *  Input -> Each Layer -> Activation -> Output
- *  Return final output
- * 
- * 3. Backward pass
- *  Compute output error (loss gradient)
- *  Backpropagate through layers in reverse
- *  Update weights/biases using learning rate
- * 
- * 4. Training loop
- *  Iterate over epochs
- *  For each batch/sample
- *      Forward pass
- *      Compute loss
- *      Backpropagation
- *      Update weights/biases
- *  Track accuracy or loss for reporting
- * 
- * 5. Evaluation
- *  Run forward pass on test/validation set
- *  Compute accuracy/loss
- * 
- * 6. Model persistence
- *  Save weights/biases to file
- *  Load weights/biases from file
- */
-
 #include "network.h"
 #include "loss.h"
 #include <iostream>
@@ -102,17 +69,35 @@ double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
         throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
     }
 
+    size_t rows = y.getRows();
     size_t cols = y.getCols();
-    Matrix onehot_predictions = onehot(predictions);
-
     size_t count = 0;
-    for (size_t i = 0; i < cols; ++i) {
-        if (predictions.getCol(i) == y.getCol(i)) {
-            count += 1;
+    
+    for (size_t j = 0; j < cols; ++j) {
+        size_t pred_index = 0;
+        double max_val = predictions(0, j);
+
+        for (size_t i = 0; i < rows; ++i) {
+            if (predictions(i, j) > max_val) {
+                max_val = predictions(i, j);
+                pred_index = i;
+            }
+        }
+
+        size_t y_index = 0;
+        for (size_t i = 0; i < rows; ++i) {
+            if (y(i, j) == 1.0) {
+                y_index = i;
+                break;
+            }
+        }
+
+        if (pred_index == y_index) {
+            count++;
         }
     }
     
-    double accuracy = count / cols;
+    double accuracy = static_cast<double>(count) / cols;
     return accuracy;
 }
 
