@@ -46,6 +46,19 @@ class Network {
         );
 
         /**
+         * Training/Test Batch accuracy function
+         * @param predictions Matrix of predictions encoded in one-hot
+         * @param y Matrix of labels for training/test batch
+         * @return double representing the accuracy of our model
+         * 
+         * Receives predictions of training/testing/evaluation batch and returns
+         * percent of predictions that are correct
+         * 
+         * Aiming for 97% with mini-batching, shuffling, decaying learning rate, etc
+         */
+        double get_accuracy(const Matrix& predictions, const Matrix& y);
+
+        /**
          * Training loop function
          * @param X Input image matrix, size (input_size, m), where m = 60000 for training set
          * @param y Matrix of labels for image comparison, size (m, 1)
@@ -86,6 +99,8 @@ class Network {
          * Cycles through layers backwards and updates layer weights and biases using layer.backward() function
          */
         void backward(const Matrix& y_true);
+
+        Matrix onehot(const Matrix& predictions);
 
         std::vector<Layer> layers;
         size_t inputSize;

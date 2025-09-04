@@ -62,6 +62,59 @@ void Network::backward(const Matrix& y_true) {
     }
 }
 
+Matrix Network::onehot(const Matrix& predictions) {
+    if (predictions.getRows() != 10) {
+        throw std::invalid_argument("Predictions Matrix must be 10xm");
+    }
+
+    size_t rows = predictions.getRows();
+    size_t cols = predictions.getCols();
+    Matrix output(rows, cols);
+
+    for (size_t j = 0; j < cols; ++j) {
+        size_t max_index = 0;
+        double max_val = predictions(0, j);
+
+        for (size_t i = 0; i < rows; ++i) {
+            if (predictions(i, j) > max_val) {
+                max_val = predictions(i, j);
+                max_index = i;
+            }
+        }
+
+        output(max_index, j) = 1.0;
+    }
+
+    return output;
+}
+
+
+double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
+    /**
+     * @param predictions (10 rows, m columns) Index with max value of each column represents prediction
+     * @param y (10 rows, m columns) Each column represents one-hot encoded vector
+     * 
+     * Need to check if index with max value of each vector in predictions matches index equal to 1 in y
+     * Then need to compute percentage of columns in which matches occur
+     */
+
+    if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
+        throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
+    }
+
+    size_t cols = y.getCols();
+    Matrix onehot_predictions = onehot(predictions);
+
+    size_t count = 0;
+    for (size_t i = 0; i < cols; ++i) {
+        if (predictions.getCol(i) == y.getCol(i)) {
+            count += 1;
+        }
+    }
+    
+    double accuracy = count / cols;
+    return accuracy;
+}
 
 void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batch_size, bool shuffle) {
     if (X.getCols() != y.getCols()) {
@@ -89,6 +142,5 @@ void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batc
         backward(y_epoch);
 
         std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "] - Loss: " << loss << std::endl;
-    }
-
+    }    
 }
