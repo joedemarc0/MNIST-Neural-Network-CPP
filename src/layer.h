@@ -69,6 +69,9 @@ class Layer {
         const Matrix getBiases() const { return biases; }
         const Matrix getOutput() const { return output; }
         const Matrix getZ() const { return z; }
+
+        const size_t getInputSize() const { return inputSize; }
+        const size_t getOutputSize() const {return outputSize; }
     
     private:
         size_t inputSize;           // Number of inputs to the layer
