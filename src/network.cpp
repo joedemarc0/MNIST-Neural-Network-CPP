@@ -153,3 +153,79 @@ void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batc
         std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "] - Loss: " << loss << std::endl;
     }    
 }
+
+void Network::saveModel(const std::string& filename) const {
+    std::ofstream out(filename);
+    if (!out.is_open()) throw std::runtime_error("Could not open file for saving model");
+
+    out << layers.size() << std::endl;
+    for (const auto& layer : layers) {
+        out << layer.getInputSize() << " "
+            << layer.getOutputSize() << " "
+            << static_cast<int>(layer.getActivationType()) << " "
+            << static_cast<int>(layer.getInitType()) << std::endl;
+
+        const Matrix& W = layer.getWeights();
+        out << W.getRows() << " " << W.getCols() << std::endl;
+        for (size_t i = 0; i < W.getRows(); ++i) {
+            for (size_t j = 0; j < W.getCols(); ++j) {
+                out << W(i, j) << " ";
+            }
+            out << std::endl;
+        }
+
+        const Matrix& b = layer.getBiases();
+        out << b.getRows() << " " << b.getCols() << std::endl;
+        for (size_t i = 0; i < b.getRows(); ++i) {
+            for (size_t j = 0; j < b.getCols(); ++j) {
+                out << b(i, j) << " ";
+            }
+            out << std::endl;
+        }
+    }
+
+    out.close();
+}
+
+void Network::loadModel(const std::string& filename) {
+    std::ifstream in(filename);
+    if (!in.is_open()) throw std::runtime_error("Could not open file for loading model");
+
+    size_t num_layers;
+    in >> num_layers;
+
+    layers.clear();
+    for (size_t l = 0; l < num_layers; ++l) {
+        size_t in_size, out_size;
+        int act, init;
+        in >> in_size >> out_size >> act >> init;
+
+        Layer layer(in_size, out_size,
+                    static_cast<Activations::ActivationType>(act),
+                    static_cast<InitType>(init));
+        
+        size_t w_rows, w_cols;
+        in >> w_rows >> w_cols;
+        Matrix W(w_rows, w_cols);
+        for (size_t i = 0; i < w_rows; ++i) {
+            for (size_t j = 0; j < w_cols; ++j) {
+                in >> W(i, j);
+            }
+        }
+        layer.setWeights(W);
+
+        size_t b_rows, b_cols;
+        in >> b_rows >> b_cols;
+        Matrix b(b_rows, b_cols);
+        for (size_t i = 0; i < b_rows; ++i) {
+            for (size_t j = 0; j < b_cols; ++j) {
+                in >> b(i, j);
+            }
+        }
+        layer.setBiases(b);
+
+        layers.push_back(layer);
+    }
+
+    in.close();
+}

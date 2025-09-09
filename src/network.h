@@ -9,6 +9,7 @@
 #include "layer.h"
 #include "matrix.h"
 #include "loss.h"
+#include "init.h"
 #include <vector>
 #include <string>
 #include <utility>
@@ -23,12 +24,6 @@
  */
 class Network {
     public:
-        /**
-         * @enum InitType
-         * Specifies which initialization method to use
-         */
-        enum class InitType { NONE, RANDOM, XAVIER, HE };
-
         /**
          * Constructor
          * @param input_size Size of input data (784,)
@@ -122,7 +117,33 @@ class Network {
          */
         double evaluate(const Matrix& X, const Matrix& y) const;
 
+        /**
+         * Save Model Function
+         * @param filename Name of file for model to be saved to "../models/filename"
+         * 
+         * Saves all model data to filename, including (in order):
+         *  Number of layers
+         *  For each layer (in order of first hidden to output):
+         *      Layer input size
+         *      Layer output size
+         *      Layer activation function type
+         *      Layer initialization type
+         *      Weights Matrix num rows
+         *      Weights Matrix num cols
+         *      Each element of Weights Matrix
+         *      Biases Matrix num rows
+         *      Biases Matrix num cols
+         *      Each element of Biases Matrix
+         */
         void saveModel(const std::string& filename) const;
+
+        /**
+         * Load Model Function
+         * @param filename Name of file for model to be loaded from "../models/filename"
+         * 
+         * Loads all model data from filename, assuming file is already
+         * saved using saveModel()
+         */
         void loadModel(const std::string& filename);
     
     private:
