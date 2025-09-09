@@ -10,7 +10,31 @@ Network::Network(size_t input_size,
                 double learning_rate,
                 Activations::ActivationType actType,
                 InitType initType,
-                Loss::LossType lossType) : inputSize(input_size), learningRate(learning_rate), actType(actType), initType(initType), lossType(lossType) {}
+                Loss::LossType lossType
+            ) : inputSize(input_size),
+                learningRate(learning_rate),
+                actType(actType),
+                initType(initType),
+                lossType(lossType) {}
+
+
+void Network::addLayer(size_t neurons) {
+    if (neurons == 0) {
+        throw std::invalid_argument("Layer must have at least one neuron");
+    }
+
+    size_t input_dim = layers.empty() ? inputSize : layers.back().getOutputSize();
+    layers.emplace_back(input_dim, neurons, actType, initType);
+}
+
+void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType) {
+    if (neurons == 0) {
+        throw std::invalid_argument("Layer must have at least one neuron");
+    }
+
+    size_t input_dim = layers.empty() ? inputSize : layers.back().getOutputSize();
+    layers.emplace_back(input_dim, neurons, actType, initType);
+}
 
 Matrix Network::forward(const Matrix& X) {
     Matrix A = X;
@@ -55,16 +79,7 @@ Matrix Network::onehot(const Matrix& predictions) {
     return output;
 }
 
-
-double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
-    /**
-     * @param predictions (10 rows, m columns) Index with max value of each column represents prediction
-     * @param y (10 rows, m columns) Each column represents one-hot encoded vector
-     * 
-     * Need to check if index with max value of each vector in predictions matches index equal to 1 in y
-     * Then need to compute percentage of columns in which matches occur
-     */
-
+double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
         throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
     }
@@ -99,6 +114,15 @@ double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
     
     double accuracy = static_cast<double>(count) / cols;
     return accuracy;
+}
+
+Matrix Network::predict(const Matrix& X) const {
+    return const_cast<Network*>(this)->forward(X);
+}
+
+double Network::evaluate(const Matrix& X, const Matrix& y) const {
+    Matrix predictions = predict(X);
+    return get_accuracy(predictions, y);
 }
 
 void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batch_size, bool shuffle) {

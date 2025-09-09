@@ -45,6 +45,31 @@ class Network {
             Loss::LossType lossType
         );
 
+        /** Minimal Constructor: Defaults to RELU + RANDOM */
+        Network(
+            size_t input_size,
+            double learning_rate,
+            Loss::LossType lossType
+        ) : inputSize(input_size),
+        learningRate(learning_rate),
+        actType(Activations::ActivationType::RELU),
+        initType(InitType::RANDOM),
+        lossType(lossType) {}
+
+        /** 
+         * Add Layer Functions
+         * @param neurons Amount of neurons in the layer, equivalent to output size of the added layer
+         * @param actType Activation function type
+         * @param initType Layer initialization type
+         * 
+         * Adds layer to the end of the std::vector<Layer> layers variable. Ensures that added layer has
+         * input size equal to output size of last layer in list, and output size equal to neurons param
+         */
+        void addLayer(size_t neurons);
+        void addLayer(size_t neurons,
+                      Activations::ActivationType actType,
+                      InitType initType);
+
         /**
          * Training/Test Batch accuracy function
          * @param predictions Matrix of predictions encoded in one-hot
@@ -56,7 +81,7 @@ class Network {
          * 
          * Aiming for 97% with mini-batching, shuffling, decaying learning rate, etc
          */
-        double get_accuracy(const Matrix& predictions, const Matrix& y);
+        double get_accuracy(const Matrix& predictions, const Matrix& y) const;
 
         /**
          * Training loop function
@@ -74,8 +99,27 @@ class Network {
                    size_t epochs,
                    size_t batch_size=0,
                    bool shuffle=true);
-
+        
+        /**
+         * Prediction function
+         * @param X Input matrix of size (input_size, m) where m is number of samples
+         * @return Matrix of size (10, m) where each column represents probability vector
+         * 
+         * Performs a forward pass through the neural network without modifying weights
+         * and returns final softmaxxed output for each sample
+         * 
+         * Useful for testing, validating, or inference
+         */
         Matrix predict(const Matrix& X) const;
+
+        /**
+         * Evaluation function
+         * @param X Input matrix of size (input_size, m) where m is number of samples
+         * @param y Label matrix of size (10, m)
+         * 
+         * Runs predict() on a set of size m and evaluates the accuracy of the model on
+         * the sample using get_accuracy()
+         */
         double evaluate(const Matrix& X, const Matrix& y) const;
 
         void saveModel(const std::string& filename) const;
@@ -100,6 +144,17 @@ class Network {
          */
         void backward(const Matrix& y_true);
 
+        /**
+         * One-hot encoding function (We'll see if I have to use this)
+         * (Originally planning to use this in get_accuracy but I realized it was an 
+         * inefficient implementation, however maybe I'll need it again)
+         * 
+         * @param predictions Matrix of size (10, m) with softmaxxed vectors
+         * @return Matrix of size (10, m) one-hot encoded
+         * 
+         * Basically takes a (10, m) matrix, with each column representing a probability vector
+         * and one-hot encodes it
+         */
         Matrix onehot(const Matrix& predictions);
 
         std::vector<Layer> layers;
