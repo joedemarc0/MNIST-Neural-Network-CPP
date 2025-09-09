@@ -8,6 +8,7 @@
 
 #include "matrix.h"
 #include "activation.h"
+#include "init.h"
 #include <functional>
 #include <string>
 
@@ -19,12 +20,6 @@
  */
 class Layer {
     public:
-        /**
-         * @enum InitType
-         * Specifies which weight initialization to apply
-         */
-        enum class InitType { NONE, RANDOM, XAVIER, HE };
-
         /**
          * Constructor
          * @param input_size Number of neurons feeding into this layer (input dimension)
@@ -61,17 +56,18 @@ class Layer {
          */
         Matrix backward(const Matrix& dA, double learning_rate);
 
-        /**
-         * Getters
-         * @return private variables weights, biases, output, and Z, all Matrix class items
-         */
         const Matrix getWeights() const { return weights; }
         const Matrix getBiases() const { return biases; }
         const Matrix getOutput() const { return output; }
         const Matrix getZ() const { return z; }
+        const Activations::ActivationType getActivationType() const { return actType; }
+        const InitType getInitType() const { return initType; }
 
         const size_t getInputSize() const { return inputSize; }
         const size_t getOutputSize() const {return outputSize; }
+
+        void setWeights(const Matrix& W) { weights = W; }
+        void setBiases(const Matrix& b) { biases = b; }
     
     private:
         size_t inputSize;           // Number of inputs to the layer
