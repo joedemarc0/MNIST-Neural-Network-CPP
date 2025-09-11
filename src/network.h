@@ -91,9 +91,8 @@ class Network {
          * batch_size=n.
          */
         void train(const Matrix& X, const Matrix& y,
-                   size_t epochs,
-                   size_t batch_size=0,
-                   bool shuffle=true);
+                   size_t epochs, size_t batch_size, bool shuffle=true,
+                   const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix());
         
         /**
          * Prediction function
@@ -181,6 +180,7 @@ class Network {
         std::vector<Layer> layers;
         size_t inputSize;
         double learningRate;
+        double decayRate;
         Matrix last_output;
 
         Activations::ActivationType actType;

@@ -125,7 +125,10 @@ double Network::evaluate(const Matrix& X, const Matrix& y) const {
     return get_accuracy(predictions, y);
 }
 
-void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batch_size, bool shuffle) {
+void Network::train(const Matrix& X, const Matrix& y,
+                    size_t epochs, size_t batch_size, bool shuffle,
+                    const Matrix& X_val, const Matrix& y_val) {
+    
     if (X.getCols() != y.getCols()) {
         throw std::invalid_argument("Image and Label sample sizes must match");
     }
@@ -135,22 +138,40 @@ void Network::train(const Matrix& X, const Matrix& y, size_t epochs, size_t batc
     std::iota(indices.begin(), indices.end(), 0);
 
     for (size_t epoch = 0; epoch < epochs; ++epoch) {
+        double eta = learningRate * pow(decayRate, epoch);
         if (shuffle) {
             static std::random_device rd;
             static std::mt19937 g(rd());
             std::shuffle(indices.begin(), indices.end(), g);
         }
 
-        Matrix X_epoch = X;
-        Matrix y_epoch = y;
+        for (size_t i = 0; i < m; i += batch_size) {
+            size_t end = std::min(i + batch_size, m);
 
-        Matrix predictions = forward(X_epoch);
+            Matrix X_batch = X.sliceCols(indices, i, end);
+            Matrix y_batch = y.sliceCols(indices, i, end);
 
-        double loss = Loss::compute(y_epoch, predictions, lossType);
+            Matrix predictions = forward(X_batch);
+            backward(y_batch);
+        }
 
-        backward(y_epoch);
+        Matrix train_predictions = forward(X);
+        double train_accuracy = get_accuracy(train_predictions, y);
+        double train_loss = Loss::compute(y, train_predictions, lossType);
 
-        std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "] - Loss: " << loss << std::endl;
+        double val_acc = -1;
+        if (X_val.getCols() > 0) {
+            Matrix val_predictions = forward(X_val);
+            val_acc = get_accuracy(val_predictions, y_val);
+        }
+
+        if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
+            std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "], "
+                    << "Training Accuracy: " << train_accuracy << ", "
+                    << "Validation Accuracy: " << (val_acc >= 0 ? std::to_string(val_acc) : "N/A")
+                    << "Learning Rate: " << eta << ", "
+                    << "Loss: " << train_loss << std::endl;
+        }
     }    
 }
 
