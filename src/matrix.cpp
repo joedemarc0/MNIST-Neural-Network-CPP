@@ -263,6 +263,39 @@ Matrix Matrix::getCol(size_t col) const {
     return result;
 }
 
+Matrix Matrix::sliceCols(std::vector<size_t> indices, size_t begin, size_t end) const {
+    /**
+     * @param indices A vector of shuffled indices (for matrix with 6 cols: [2, 3, 6, 1, 5, 4] for example)
+     * @param begin starting index
+     * @param end ending index
+     * 
+     * The function should read [begin, end] and return the columns of the Matrix represented by the indices
+     * in the vector indices - from [begin to end]
+     * 
+     * For example: indices = [2, 3, 6, 1, 5, 4] - begin = 2, end = 4
+     * The function will return a Matrix of size (*this.rows)x(end - begin), where end - begin = 2, where the columns
+     * of the matrix are column 6 and column 1 of the Matrix object
+     * 
+     * Exceptions: end cannot be greater than Matrix.getCols()
+     */
+
+    if (begin >= end || end > indices.size()) {
+        throw std::out_of_range("Invalid slice range in sliceCols");
+    }
+
+    size_t newCols = end - begin;
+    Matrix result(rows, newCols);
+
+    for (size_t r = 0; r < rows; ++r) {
+        for (size_t c = 0; c < newCols; ++c) {
+            size_t colIdx = indices[begin + c];
+            result(r, c) = data[r][colIdx];
+        }
+    }
+
+    return result;
+}
+
 void Matrix::setCol(size_t col, const Matrix& colMatrix) {
     if (col >= cols) {
         throw std::out_of_range("Column index out of range");
