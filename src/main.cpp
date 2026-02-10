@@ -1,5 +1,8 @@
 #include <iostream>
+#include <random>
+#include <opencv2/opencv.hpp>
 #include "data-loader.h"
+#include "visualization.h"
 
 
 int main() {

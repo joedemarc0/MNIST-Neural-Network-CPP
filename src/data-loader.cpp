@@ -76,6 +76,108 @@ MNISTDataset MNISTLoader::load_test_data(const std::string& data_dir) {
     return load_dataset(data_dir + "/t10k-images.idx3-ubyte", data_dir + "/t10k-labels.idx1-ubyte");
 }
 
+
+// Function to print dataset information and statistics
+void MNISTLoader::print_dataset_info(const MNISTDataset& dataset) {
+    std::cout << "\n=== MNIST Dataset Information ===" << std::endl;
+    std::cout << "Number of samples: " << dataset.num_samples << std::endl;
+    std::cout << "Image dimensions: " << dataset.image_width << "x" << dataset.image_height << std::endl;
+    std::cout << "Number of classes: " << dataset.num_classes << std::endl;
+    std::cout << "Mean pixel value: " << std::fixed << std::setprecision(4) << dataset.mean_pixel_value << std::endl;
+    std::cout << "Std pixel value: " << std::fixed << std::setprecision(4) << dataset.std_pixel_value << std::endl;
+
+    std::vector<int> class_counts(dataset.num_classes, 0);
+    for (const auto& sample : dataset.samples) {
+        class_counts[sample.label_index]++;
+    }
+
+    std::cout << "\nSamples per class:" << std::endl;
+    for (int i = 0; i < dataset.num_classes; ++i) {
+        std::cout << "  Class " << i << ": " << class_counts[i] << " samples" << std::endl;
+    }
+    std::cout << "================================\n" << std::endl;
+}
+
+void MNISTLoader::save_dataset(const MNISTDataset& dataset, const std::string& filename) {
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Cannot create file: " + filename);
+    }
+
+    // Write dataset metadata
+    file.write(reinterpret_cast<const char*>(&dataset.num_samples), sizeof(int));
+    file.write(reinterpret_cast<const char*>(&dataset.image_width), sizeof(int));
+    file.write(reinterpret_cast<const char*>(&dataset.image_height), sizeof(int));
+    file.write(reinterpret_cast<const char*>(&dataset.num_classes), sizeof(int));
+    file.write(reinterpret_cast<const char*>(&dataset.mean_pixel_value), sizeof(double));
+    file.write(reinterpret_cast<const char*>(&dataset.std_pixel_value), sizeof(double));
+
+    for (const auto& sample : dataset.samples) {
+        // Write image data
+        size_t image_size = sample.image.size();
+        file.write(reinterpret_cast<const char*>(&image_size), sizeof(size_t));
+        file.write(reinterpret_cast<const char*>(sample.image.data()), image_size * sizeof(double));
+
+        // Write label data
+        size_t label_size = sample.label.size();
+        file.write(reinterpret_cast<const char*>(&label_size), sizeof(size_t));
+        file.write(reinterpret_cast<const char*>(sample.label.data()), label_size * sizeof(double));
+
+        // Write label index
+        file.write(reinterpret_cast<const char*>(&sample.label_index), sizeof(int));
+    }
+
+    file.close();
+    std::cout << "Dataset saved to: " << filename << std::endl;
+}
+
+MNISTDataset MNISTLoader::load_dataset_binary(const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Cannot open file: " + filename);
+    }
+
+    MNISTDataset dataset;
+
+    // Read dataset metadata
+    file.read(reinterpret_cast<char*>(&dataset.num_samples), sizeof(int));
+    file.read(reinterpret_cast<char*>(&dataset.image_width), sizeof(int));
+    file.read(reinterpret_cast<char*>(&dataset.image_height), sizeof(int));
+    file.read(reinterpret_cast<char*>(&dataset.num_classes), sizeof(int));
+    file.read(reinterpret_cast<char*>(&dataset.mean_pixel_value), sizeof(double));
+    file.read(reinterpret_cast<char*>(&dataset.std_pixel_value), sizeof(double));
+
+    dataset.samples.reserve(dataset.num_samples);
+
+    // Read samples
+    for (int i = 0; i < dataset.num_samples; ++i) {
+        MNISTSample sample;
+
+        // Read image data
+        size_t image_size;
+        file.read(reinterpret_cast<char*>(&image_size), sizeof(size_t));
+        sample.image.resize(image_size);
+        file.read(reinterpret_cast<char*>(sample.image.data()), image_size * sizeof(double));
+
+        // Read label data
+        size_t label_size;
+        file.read(reinterpret_cast<char*>(&label_size), sizeof(size_t));
+        sample.label.resize(label_size);
+        file.read(reinterpret_cast<char*>(sample.label.data()), label_size * sizeof(double));
+
+        // Read label index
+        file.read(reinterpret_cast<char*>(&sample.label_index), sizeof(int));
+
+        dataset.samples.push_back(sample);
+    }
+
+    file.close();
+    std::cout << "Dataset loaded from: " << filename << std::endl;
+    return dataset;
+}
+
+
+
 // Function to open image files and read data to a vector
 std::vector<std::vector<uint8_t>> MNISTLoader::read_mnist_images(const std::string& path) {
     std::ifstream file(path, std::ios::binary);
@@ -186,103 +288,4 @@ void MNISTLoader::calculate_statistics(MNISTDataset& dataset) {
         }
     }
     dataset.std_pixel_value = std::sqrt(variance_sum / total_pixels);
-}
-
-// Function to print dataset information and statistics
-void MNISTLoader::print_dataset_info(const MNISTDataset& dataset) {
-    std::cout << "\n=== MNIST Dataset Information ===" << std::endl;
-    std::cout << "Number of samples: " << dataset.num_samples << std::endl;
-    std::cout << "Image dimensions: " << dataset.image_width << "x" << dataset.image_height << std::endl;
-    std::cout << "Number of classes: " << dataset.num_classes << std::endl;
-    std::cout << "Mean pixel value: " << std::fixed << std::setprecision(4) << dataset.mean_pixel_value << std::endl;
-    std::cout << "Std pixel value: " << std::fixed << std::setprecision(4) << dataset.std_pixel_value << std::endl;
-
-    std::vector<int> class_counts(dataset.num_classes, 0);
-    for (const auto& sample : dataset.samples) {
-        class_counts[sample.label_index]++;
-    }
-
-    std::cout << "\nSamples per class:" << std::endl;
-    for (int i = 0; i < dataset.num_classes; ++i) {
-        std::cout << "  Class " << i << ": " << class_counts[i] << " samples" << std::endl;
-    }
-    std::cout << "================================\n" << std::endl;
-}
-
-void MNISTLoader::save_dataset(const MNISTDataset& dataset, const std::string& filename) {
-    std::ofstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("Cannot create file: " + filename);
-    }
-
-    // Write dataset metadata
-    file.write(reinterpret_cast<const char*>(&dataset.num_samples), sizeof(int));
-    file.write(reinterpret_cast<const char*>(&dataset.image_width), sizeof(int));
-    file.write(reinterpret_cast<const char*>(&dataset.image_height), sizeof(int));
-    file.write(reinterpret_cast<const char*>(&dataset.num_classes), sizeof(int));
-    file.write(reinterpret_cast<const char*>(&dataset.mean_pixel_value), sizeof(double));
-    file.write(reinterpret_cast<const char*>(&dataset.std_pixel_value), sizeof(double));
-
-    for (const auto& sample : dataset.samples) {
-        // Write image data
-        size_t image_size = sample.image.size();
-        file.write(reinterpret_cast<const char*>(&image_size), sizeof(size_t));
-        file.write(reinterpret_cast<const char*>(sample.image.data()), image_size * sizeof(double));
-
-        // Write label data
-        size_t label_size = sample.label.size();
-        file.write(reinterpret_cast<const char*>(&label_size), sizeof(size_t));
-        file.write(reinterpret_cast<const char*>(sample.label.data()), label_size * sizeof(double));
-
-        // Write label index
-        file.write(reinterpret_cast<const char*>(&sample.label_index), sizeof(int));
-    }
-
-    file.close();
-    std::cout << "Dataset saved to: " << filename << std::endl;
-}
-
-MNISTDataset MNISTLoader::load_dataset_binary(const std::string& filename) {
-    std::ifstream file(filename, std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("Cannot open file: " + filename);
-    }
-
-    MNISTDataset dataset;
-
-    // Read dataset metadata
-    file.read(reinterpret_cast<char*>(&dataset.num_samples), sizeof(int));
-    file.read(reinterpret_cast<char*>(&dataset.image_width), sizeof(int));
-    file.read(reinterpret_cast<char*>(&dataset.image_height), sizeof(int));
-    file.read(reinterpret_cast<char*>(&dataset.num_classes), sizeof(int));
-    file.read(reinterpret_cast<char*>(&dataset.mean_pixel_value), sizeof(double));
-    file.read(reinterpret_cast<char*>(&dataset.std_pixel_value), sizeof(double));
-
-    dataset.samples.reserve(dataset.num_samples);
-
-    // Read samples
-    for (int i = 0; i < dataset.num_samples; ++i) {
-        MNISTSample sample;
-
-        // Read image data
-        size_t image_size;
-        file.read(reinterpret_cast<char*>(&image_size), sizeof(size_t));
-        sample.image.resize(image_size);
-        file.read(reinterpret_cast<char*>(sample.image.data()), image_size * sizeof(double));
-
-        // Read label data
-        size_t label_size;
-        file.read(reinterpret_cast<char*>(&label_size), sizeof(size_t));
-        sample.label.resize(label_size);
-        file.read(reinterpret_cast<char*>(sample.label.data()), label_size * sizeof(double));
-
-        // Read label index
-        file.read(reinterpret_cast<char*>(&sample.label_index), sizeof(int));
-
-        dataset.samples.push_back(sample);
-    }
-
-    file.close();
-    std::cout << "Dataset loaded from: " << filename << std::endl;
-    return dataset;
 }

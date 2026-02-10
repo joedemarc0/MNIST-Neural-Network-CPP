@@ -5,26 +5,163 @@
 #include <random>
 
 
-// Constructor
-Network::Network(size_t input_size,
-                double learning_rate,
-                Activations::ActivationType actType,
-                InitType initType,
-                Loss::LossType lossType
-            ) : inputSize(input_size),
-                learningRate(learning_rate),
-                actType(actType),
-                initType(initType),
-                lossType(lossType) {}
+// Empty/Default Constructor
+Network::Network(    
+) : networkInputSize(784),
+    learningRate(0.1),
+    decayRate(0.99),
+    networkActType(Activations::ActivationType::RELU),
+    networkInitType(InitType::HE),
+    networkLossType(Loss::LossType::CROSS_ENTROPY)
+{
+    addLayer(128);
+    addLayer(64);
+    addLayer(10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
+    isCompiled = true;
+}
 
+// Non-empty Constructor
+Network::Network(
+    size_t input_size,
+    double learning_rate,
+    Activations::ActivationType act_type,
+    InitType init_type,
+    Loss::LossType loss_type
+) : networkInputSize(input_size),
+    learningRate(learning_rate),
+    decayRate(0.99),
+    networkActType(act_type),
+    networkInitType(init_type),
+    networkLossType(loss_type),
+    batchSize(0),
+    isCompiled(false)
+{
+    if (learning_rate <= 0.0) {
+        throw std::invalid_argument("Learning Rate must be positive");
+    }
+    if (input_size <= 0) {
+        throw std::invalid_argument("Network Input Size cannot be zero");
+    }
+}
+
+
+// Nested Layer Class Implementation
+Network::Layer::Layer(
+    size_t input_size,
+    size_t output_size,
+    Activations::ActivationType act_type,
+    InitType init_type
+) : inputSize(input_size),
+    outputSize(output_size),
+    actType(act_type),
+    initType(init_type)
+{
+    initialize();
+    biases.fill(0.0);
+}
+
+void Network::Layer::initialize() {
+    switch(initType) {
+        case InitType::RANDOM: { weights.randomize(); break; }
+        case InitType::HE: { weights.heInit(); break; }
+        case InitType::XAVIER: { weights.xavierInit(); break; }
+        case InitType::NONE: { weights.fill(1.0); break; }
+        default: throw std::invalid_argument("This shouldn't be called...");
+    }
+}
+
+void Network::Layer::updateParams(const Matrix& dWeights, const Matrix& dbiases, double learning_rate) {
+    weights -= learning_rate * dWeights;
+    biases -= learning_rate * dbiases;
+}
+
+Matrix Network::Layer::forward(const Matrix& X) {
+    input = X;
+    Matrix Z = (weights * X) + biases;
+    Matrix A = Activations::activate(Z, actType);
+    preActivation = Z;
+    output = A;
+    return output;
+}
+
+Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
+    Matrix dZ(outputSize, batch_size);
+    Matrix dWeights(outputSize, inputSize);
+    Matrix dbiases(outputSize, 1);
+    Matrix dA_return;
+
+    if (actType == Activations::ActivationType::SOFTMAX) {
+        dZ = dA;
+    } else {
+        Matrix sigma_prime;
+        sigma_prime = Activations::deriv_activate(preActivation, actType);
+
+        dZ = dA.hadamard(sigma_prime);
+    }
+
+    dWeights = (1.0 / batch_size) * (dZ * input.transpose());
+    for (size_t i = 0; i < batch_size; ++i) {
+        dbiases += dZ.getCol(i);
+    }
+    dbiases = dbiases / batch_size;
+
+    dA_return = weights.transpose() * dZ;
+    updateParams(dWeights, dbiases, learning_rate);
+
+    return dA_return;
+}
+
+
+// Network Class Implementation
+Matrix Network::forward(const Matrix& X) {
+    if (!isCompiled) {
+        if (layers.empty()) {
+            throw std::runtime_error("Must have hidden layers to run forward pass");
+        }
+
+        size_t last_input_size = layers.back().getOutputSize();
+        layers.emplace_back(last_input_size, 10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
+        isCompiled = true;
+    }
+
+    if (X.getRows() != networkInputSize) {
+        std::cout << "Network Input Size: " << networkInputSize << std::endl;
+        std::cout << "Input Variable Size: " << X.getRows() << std::endl;
+        throw std::invalid_argument("Network input size variable not equal to size of input");
+    }
+
+    Matrix A = X;
+    for (auto& layer : layers) {
+        A = layer.forward(A);
+    }
+
+    lastOutput = A;
+    return lastOutput;
+}
+
+void Network::backward(const Matrix& y_true) {
+    Matrix dA;
+
+    // NEED TO IMPLEMENT MSE LOSS AS WELL
+
+
+
+    // SWITCH UP CASES
+
+    dA = lastOutput - y_true;
+    batchSize = dA.getCols();
+    for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
+        dA = layers[i].backward(dA, batchSize, learningRate);
+    }
+}
 
 void Network::addLayer(size_t neurons) {
     if (neurons == 0) {
         throw std::invalid_argument("Layer must have at least one neuron");
     }
 
-    size_t input_dim = layers.empty() ? inputSize : layers.back().getOutputSize();
-    layers.emplace_back(input_dim, neurons, actType, initType);
+    size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
+    layers.emplace_back(input_dim, neurons, networkActType, networkInitType);
 }
 
 void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType) {
@@ -32,27 +169,16 @@ void Network::addLayer(size_t neurons, Activations::ActivationType actType, Init
         throw std::invalid_argument("Layer must have at least one neuron");
     }
 
-    size_t input_dim = layers.empty() ? inputSize : layers.back().getOutputSize();
+    size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
     layers.emplace_back(input_dim, neurons, actType, initType);
 }
 
-Matrix Network::forward(const Matrix& X) {
-    Matrix A = X;
-    for (auto& layer : layers) {
-        A = layer.forward(A);
-    }
-    last_output = A;
-    return A;
-}
 
-void Network::backward(const Matrix& y_true) {
-    Matrix dA = Loss::derivative(y_true, last_output, lossType);
 
-    for (int i = layers.size() - 1; i >= 0; --i) {
-        dA = layers[i].backward(dA, learningRate);
-    }
-}
 
+
+
+// LOOK THROUGH AND CORRECT
 Matrix Network::onehot(const Matrix& predictions) {
     if (predictions.getRows() != 10) {
         throw std::invalid_argument("Predictions Matrix must be 10xm");
@@ -79,6 +205,12 @@ Matrix Network::onehot(const Matrix& predictions) {
     return output;
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
         throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
@@ -116,15 +248,33 @@ double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     return accuracy;
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 Matrix Network::predict(const Matrix& X) const {
     return const_cast<Network*>(this)->forward(X);
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 double Network::evaluate(const Matrix& X, const Matrix& y) const {
     Matrix predictions = predict(X);
     return get_accuracy(predictions, y);
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 void Network::train(const Matrix& X, const Matrix& y,
                     size_t epochs, size_t batch_size, bool shuffle,
                     const Matrix& X_val, const Matrix& y_val) {
@@ -157,7 +307,7 @@ void Network::train(const Matrix& X, const Matrix& y,
 
         Matrix train_predictions = forward(X);
         double train_accuracy = get_accuracy(train_predictions, y);
-        double train_loss = Loss::compute(y, train_predictions, lossType);
+        double train_loss = Loss::compute(y, train_predictions, networkLossType);
 
         double val_acc = -1;
         if (X_val.getCols() > 0) {
@@ -175,6 +325,12 @@ void Network::train(const Matrix& X, const Matrix& y,
     }    
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 void Network::saveModel(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out.is_open()) throw std::runtime_error("Could not open file for saving model");
@@ -208,6 +364,12 @@ void Network::saveModel(const std::string& filename) const {
     out.close();
 }
 
+
+
+
+
+
+// LOOK THROUGH AND CORRECT
 void Network::loadModel(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open()) throw std::runtime_error("Could not open file for loading model");
