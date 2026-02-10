@@ -1,6 +1,16 @@
 /**
  * Neural Network Class Implementation. Represents fully configured neural network, ready to train,
  * predict, and evaluate data. Options to save and load models into /models/ folder
+ * 
+ * Contains Nested Layer class - Layer class was originally separated
+ * Empty Constructor for Network creates Neural Network of the form:
+ * * 784 -> 128 -> 64 -> 10
+ * * RELU and HE Initialization for both hidden layers
+ * * SOFTMAX and XAVIER Initialization on output layer
+ * * CROSS ENTROPY Loss format
+ * 
+ * However the non-empty constructor allows for experimenting with different initializations, activation functions,
+ * number of types of layers, etc.
  */
 
 #ifndef NETWORK_H
@@ -19,6 +29,7 @@
 
 class Network {
     private:
+        // Nested Layer Class
         class Layer {
             private:
                 size_t inputSize;
@@ -91,6 +102,7 @@ class Network {
                       Activations::ActivationType actType,
                       InitType initType);
 
+        // Every Function from here on down needs to be worked on
         double get_accuracy(const Matrix& predictions, const Matrix& y) const;
 
         void train(const Matrix& X, const Matrix& y,

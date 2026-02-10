@@ -13,7 +13,6 @@ namespace Loss {
         double loss = 0.0;
 
         switch (type) {
-            // Compute Loss for MSE
             case LossType::MSE: {
                 Matrix diff = y_pred - y_true;
 
@@ -27,7 +26,6 @@ namespace Loss {
                 break;
             }
 
-            // Compute Loss for Cross Entropy
             case LossType::CROSS_ENTROPY: {
                 const double epsilon = 1e-12;
 

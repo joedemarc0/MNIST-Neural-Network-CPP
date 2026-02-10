@@ -1,3 +1,10 @@
+/**
+ * Simple Loss Function Implementation
+ * 
+ * Similar to activations.h. Allows for the option to choose different loss types and the neural network will back propagate
+ * differently based on loss type. Sometimes uneeded but allows for you to compute the loss as well
+ */
+
 #ifndef LOSS_H
 #define LOSS_H
 

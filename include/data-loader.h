@@ -5,20 +5,12 @@
 #include <cstdint>
 
 
-/**
- * Structure to hold a single MNIST image sample
- * Contains the pixel data, label information, and original label index
- */
 struct MNISTSample {
     std::vector<double> image;
     std::vector<double> label;
     int label_index;
 };
 
-/**
- * Structure to hold entire MNIST dataset in form of MNISTSamples
- * Contains all samples plus metadata and statistical information
- */
 struct MNISTDataset {
     std::vector<MNISTSample> samples;
     int num_samples;
@@ -31,10 +23,6 @@ struct MNISTDataset {
 };
 
 
-/**
- * @class MNISTDataLoader
- * Handles reading, processing, and managing MNIST ubyte data files
- */
 class MNISTLoader {
     public:
         // Constructors
