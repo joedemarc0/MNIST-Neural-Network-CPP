@@ -162,6 +162,7 @@ void Network::backward(const Matrix& y_true) {
     Activations::ActivationType outputLayerActType;
     outputLayerActType = layers.back().getActivationType();
 
+    // Computing dZ for the Output Layer
     switch(networkLossType) {
         case Loss::LossType::CROSS_ENTROPY: {
             if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
@@ -177,7 +178,15 @@ void Network::backward(const Matrix& y_true) {
 
         case Loss::LossType::MSE: {
             if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
-                // WHOOOOO
+                for (size_t j = 0; j < batchSize; ++j) {
+                    Matrix Jacobian(lastOutput.getRows(), lastOutput.getRows());
+                    Matrix y_hat = lastOutput.getCol(j);
+
+                    Jacobian = y_hat.diag() - y_hat * y_hat.transpose();
+                    
+                    Matrix dA_colMatrix = Jacobian * (y_hat - y_true.getCol(j));
+                    dA.setCol(j, dA_colMatrix);
+                }
                 
             } else {
                 Matrix difference = lastOutput - y_true;
