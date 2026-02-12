@@ -108,6 +108,7 @@ Matrix Matrix::operator*(const Matrix& other) const {
     return result;
 }
 
+// Hadamard Division Operator - Element-wise Division
 Matrix Matrix::operator%(const Matrix& other) const {
     if (rows != other.rows || cols != other.cols) {
         throw std::invalid_argument("Matrix Dimensions must match!");
@@ -211,6 +212,22 @@ Matrix Matrix::apply(std::function<double(double)> func) const {
         }
     }
     return result;
+}
+
+Matrix Matrix::diag() const {
+    if (cols == rows) {
+        Matrix result(rows, 1);
+        for (size_t i = 0; i < rows; ++i) {
+            result(i, 0) = data[i][i];
+        }
+    } if (cols == 1) {
+        Matrix result(rows, rows); 
+        for (size_t i = 0; i < rows; ++i) {
+            result(i, i) = data[i][0];
+        }
+    } else {
+        throw std::runtime_error("Matrix must be of dimension (n x 1) or (n x n)");
+    }
 }
 
 // Initialize with random values

@@ -59,6 +59,7 @@ class Matrix {
         Matrix hadamard(const Matrix& other) const;
         Matrix transpose() const;
         Matrix apply(std::function<double(double)> func) const;
+        Matrix diag() const;
 
         // Initializations methods
         void randomize(double min=-1.0, double max=1.0);
