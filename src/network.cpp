@@ -16,7 +16,7 @@ Network::Network(
 {
     addLayer(128);
     addLayer(64);
-    addLayer(10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
+    addLayer(10, Activations::ActivationType::SOFTMAX, InitType::XAVIER, true);
     isCompiled = true;
 }
 
@@ -60,6 +60,22 @@ Network::Layer::Layer(
     biases.fill(0.0);
 }
 
+Network::Layer::Layer(
+    size_t input_size,
+    size_t output_size,
+    Activations::ActivationType act_type,
+    InitType init_type,
+    bool is_last_layer
+) : inputSize(input_size),
+    outputSize(output_size),
+    actType(act_type),
+    initType(init_type),
+    isLastLayer(is_last_layer)
+{
+    initialize();
+    biases.fill(0.0);
+}
+
 void Network::Layer::initialize() {
     switch(initType) {
         case InitType::RANDOM: { weights.randomize(); break; }
@@ -90,7 +106,7 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
     Matrix dbiases(outputSize, 1);
     Matrix dA_return;
 
-    if (actType == Activations::ActivationType::SOFTMAX) {
+    if (isLastLayer) {
         dZ = dA;
     } else {
         Matrix sigma_prime;
@@ -140,16 +156,39 @@ Matrix Network::forward(const Matrix& X) {
 }
 
 void Network::backward(const Matrix& y_true) {
-    Matrix dA;
+    Matrix dA(y_true.getRows(), y_true.getCols());
+    batchSize = y_true.getCols();
 
-    // NEED TO IMPLEMENT MSE LOSS AS WELL
+    Activations::ActivationType outputLayerActType;
+    outputLayerActType = layers.back().getActivationType();
 
+    switch(networkLossType) {
+        case Loss::LossType::CROSS_ENTROPY: {
+            if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
+                dA = (1.0 / batchSize) * (lastOutput - y_true);
+            } else {
+                Matrix dividend = y_true % lastOutput;
+                Matrix psi_prime = Activations::deriv_activate(layers.back().getZ(), outputLayerActType);
+                dA = - (1.0 / batchSize) * dividend.hadamard(psi_prime);
+            }
 
+            break;
+        }
 
-    // SWITCH UP CASES
+        case Loss::LossType::MSE: {
+            if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
+                // WHOOOOO
+                
+            } else {
+                Matrix difference = lastOutput - y_true;
+                Matrix psi_prime = Activations::deriv_activate(layers.back().getZ(), outputLayerActType);
+                dA = (1.0 / batchSize) * difference.hadamard(psi_prime); 
+            }
 
-    dA = lastOutput - y_true;
-    batchSize = dA.getCols();
+            break;
+        }
+    }
+
     for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
         dA = layers[i].backward(dA, batchSize, learningRate);
     }
@@ -173,12 +212,25 @@ void Network::addLayer(size_t neurons, Activations::ActivationType actType, Init
     layers.emplace_back(input_dim, neurons, actType, initType);
 }
 
+void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType, bool is_last_layer) {
+    if (neurons == 0) {
+        throw std::invalid_argument("Layer must have at least one neuron");
+    }
+
+    size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
+    layers.emplace_back(input_dim, neurons, actType, initType, is_last_layer);
+}
 
 
 
 
 
-// LOOK THROUGH AND CORRECT
+
+
+
+
+
+// Everything Below needs to be reviewed and corrected
 Matrix Network::onehot(const Matrix& predictions) {
     if (predictions.getRows() != 10) {
         throw std::invalid_argument("Predictions Matrix must be 10xm");
@@ -205,12 +257,6 @@ Matrix Network::onehot(const Matrix& predictions) {
     return output;
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
         throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
@@ -248,33 +294,15 @@ double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     return accuracy;
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 Matrix Network::predict(const Matrix& X) const {
     return const_cast<Network*>(this)->forward(X);
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 double Network::evaluate(const Matrix& X, const Matrix& y) const {
     Matrix predictions = predict(X);
     return get_accuracy(predictions, y);
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 void Network::train(const Matrix& X, const Matrix& y,
                     size_t epochs, size_t batch_size, bool shuffle,
                     const Matrix& X_val, const Matrix& y_val) {
@@ -325,12 +353,6 @@ void Network::train(const Matrix& X, const Matrix& y,
     }    
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 void Network::saveModel(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out.is_open()) throw std::runtime_error("Could not open file for saving model");
@@ -364,12 +386,6 @@ void Network::saveModel(const std::string& filename) const {
     out.close();
 }
 
-
-
-
-
-
-// LOOK THROUGH AND CORRECT
 void Network::loadModel(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open()) throw std::runtime_error("Could not open file for loading model");
