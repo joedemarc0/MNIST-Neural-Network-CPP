@@ -8,15 +8,31 @@
 // Constructors
 Matrix::Matrix() : rows(0), cols(0) {}
 
-Matrix::Matrix(size_t rows, size_t cols) : rows(rows), cols(cols) {
+Matrix::Matrix(
+    size_t rows,
+    size_t cols
+) : rows(rows),
+    cols(cols)
+{
     data.resize(rows, std::vector<double>(cols, 0.0));
 }
 
-Matrix::Matrix(size_t rows, size_t cols, double value) : rows(rows), cols(cols) {
+Matrix::Matrix(
+    size_t rows,
+    size_t cols,
+    double value
+) : rows(rows),
+    cols(cols)
+{
     data.resize(rows, std::vector<double>(cols, value));
 }
 
-Matrix::Matrix(const Matrix& other) : data(other.data), rows(other.rows), cols(other.cols) {}
+Matrix::Matrix(
+    const Matrix& other
+) : data(other.data),
+    rows(other.rows),
+    cols(other.cols)
+{}
 
 
 // Assignment operator
@@ -78,7 +94,7 @@ Matrix Matrix::operator-(const Matrix& other) const {
 
 Matrix Matrix::operator*(const Matrix& other) const {
     if (cols != other.rows) {
-        throw std::invalid_argument("Invlaid dimensions for matrix multiplication");
+        throw std::invalid_argument("Invalid dimensions for matrix multiplication");
     }
 
     Matrix result(rows, other.cols);
@@ -87,6 +103,20 @@ Matrix Matrix::operator*(const Matrix& other) const {
             for (size_t k = 0; k < cols; ++k) {
                 result(i, j) += data[i][k] * other(k, j);
             }
+        }
+    }
+    return result;
+}
+
+Matrix Matrix::operator%(const Matrix& other) const {
+    if (rows != other.rows || cols != other.cols) {
+        throw std::invalid_argument("Matrix Dimensions must match!");
+    }
+
+    Matrix result(rows, cols);
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            result(i, j) = data[i][j] / other(i, j);
         }
     }
     return result;
@@ -263,6 +293,7 @@ Matrix Matrix::getCol(size_t col) const {
     return result;
 }
 
+// Probably Needed Once we implement Mini-Batch Training
 Matrix Matrix::sliceCols(std::vector<size_t> indices, size_t begin, size_t end) const {
     /**
      * @param indices A vector of shuffled indices (for matrix with 6 cols: [2, 3, 6, 1, 5, 4] for example)
