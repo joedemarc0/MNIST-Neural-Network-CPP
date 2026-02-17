@@ -8,15 +8,6 @@ namespace Activations {
         Matrix result(x.getRows(), x.getCols());
 
         switch (type) {
-            case ActivationType::SIGMOID: {
-                for (size_t i = 0; i < x.getRows(); ++i) {
-                    for (size_t j = 0; j < x.getCols(); ++j) {
-                        result(i, j) = 1.0 / (1.0 + std::exp(-x(i, j)));
-                    }
-                }
-                break;
-            }
-
             case ActivationType::RELU: {
                 for (size_t i = 0; i < x.getRows(); ++i) {
                     for (size_t j = 0; j < x.getCols(); ++j) {
@@ -56,7 +47,7 @@ namespace Activations {
                 break;
             }
 
-            default: result = x;
+            default: throw std::runtime_error("Layer Activation Function Type Unspecified");
         }
 
         return result;
@@ -65,17 +56,6 @@ namespace Activations {
     Matrix deriv_activate(const Matrix& x, ActivationType type) {
         Matrix result(x.getRows(), x.getCols());
         switch (type) {
-            case ActivationType::SIGMOID: {
-                Matrix s(x.getRows(), x.getCols());
-                for (size_t i = 0; i < x.getRows(); ++i) {
-                    for (size_t j = 0; j < x.getCols(); ++j) {
-                        s(i, j) = 1.0 / (1.0 + std::exp(-x(i, j)));
-                        result(i, j) = s(i, j) * (1.0 - s(i, j));
-                    }
-                }
-                break;
-            }
-
             case ActivationType::RELU: {
                 for (size_t i = 0; i < x.getRows(); ++i) {
                     for (size_t j = 0; j < x.getCols(); ++j) {
@@ -99,7 +79,7 @@ namespace Activations {
                 throw std::invalid_argument("This should theoretically not be called");
             }
 
-            default: result = x;
+            default: throw std::runtime_error("Layer Activation Function Type Unspecified");
         }
 
         return result;

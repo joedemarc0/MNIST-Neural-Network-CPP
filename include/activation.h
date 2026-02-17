@@ -15,7 +15,7 @@
 
 
 namespace Activations {
-    enum class ActivationType{ NONE, SIGMOID, RELU, LEAKY_RELU, SOFTMAX };
+    enum class ActivationType{ RELU, LEAKY_RELU, SOFTMAX };
     Matrix activate(const Matrix& x, ActivationType type);
     Matrix deriv_activate(const Matrix& x, ActivationType type);
 }
