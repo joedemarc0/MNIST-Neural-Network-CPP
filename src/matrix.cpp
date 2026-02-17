@@ -108,21 +108,6 @@ Matrix Matrix::operator*(const Matrix& other) const {
     return result;
 }
 
-// Hadamard Division Operator - Element-wise Division
-Matrix Matrix::operator%(const Matrix& other) const {
-    if (rows != other.rows || cols != other.cols) {
-        throw std::invalid_argument("Matrix Dimensions must match!");
-    }
-
-    Matrix result(rows, cols);
-    for (size_t i = 0; i < rows; ++i) {
-        for (size_t j = 0; j < cols; ++j) {
-            result(i, j) = data[i][j] / other(i, j);
-        }
-    }
-    return result;
-}
-
 // Scalar operations
 Matrix Matrix::operator*(double scalar) const {
     Matrix result(rows, cols);
@@ -141,7 +126,7 @@ Matrix Matrix::operator/(double scalar) const {
     return *this * (1.0 / scalar);
 }
 
-// In-place operations
+// In-place Matrix operations
 Matrix& Matrix::operator+=(const Matrix& other) {
     *this = *this + other;
     return *this;
@@ -152,12 +137,28 @@ Matrix& Matrix::operator-=(const Matrix& other) {
     return *this;
 }
 
+// In-place Scalar operations
 Matrix& Matrix::operator*=(double scalar) {
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
             data[i][j] *= scalar;
         }
     }
+    
+    return *this;
+}
+
+Matrix& Matrix::operator/=(double scalar) {
+    if (scalar == 0.0) {
+        throw std::invalid_argument("Divide by zero error");
+    }
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            data[i][j] /= scalar;
+        }
+    }
+
     return *this;
 }
 

@@ -41,16 +41,18 @@ class Matrix {
         Matrix operator+(const Matrix& other) const;
         Matrix operator-(const Matrix& other) const;
         Matrix operator*(const Matrix& other) const;
-        Matrix operator%(const Matrix& other) const;
 
         // Scalar operations
         Matrix operator*(double scalar) const;
         Matrix operator/(double scaler) const;
 
-        // In-place operations
+        // In-place Matrix operations
         Matrix& operator+=(const Matrix& other);
         Matrix& operator-=(const Matrix& other);
+
+        // In-place Scalar operations
         Matrix& operator*=(double scalar);
+        Matrix& operator/=(double scalar);
 
         // Boolean operation
         bool operator==(const Matrix& other) const;
