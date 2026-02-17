@@ -18,7 +18,6 @@
 
 #include "matrix.h"
 #include "activation.h"
-#include "loss.h"
 #include "init.h"
 #include <vector>
 #include <string>
@@ -32,7 +31,6 @@ class Network {
         // Nested Layer Class
         class Layer {
             private:
-                bool isLastLayer = false;
                 size_t inputSize;
                 size_t outputSize;
 
@@ -56,14 +54,6 @@ class Network {
                     InitType init_type
                 );
 
-                Layer(
-                    size_t input_size,
-                    size_t output_size,
-                    Activations::ActivationType act_type,
-                    InitType init_type,
-                    bool is_last_layer
-                );
-
                 Matrix forward(const Matrix& X);
                 Matrix backward(const Matrix& dA, size_t batch_size, double learning_rate);
 
@@ -75,7 +65,6 @@ class Network {
                 InitType getInitType() const { return initType; }
                 size_t getInputSize() const { return inputSize; }
                 size_t getOutputSize() const { return outputSize; }
-                bool getIsLastLayer() const { return isLastLayer; }
 
                 void setWeights(const Matrix& W) { weights = W; }
                 void setBiases(const Matrix& b) { biases = b; }
@@ -84,18 +73,20 @@ class Network {
         bool isCompiled = false;
         std::vector<Layer> layers;
         size_t networkInputSize;
-        size_t batchSize;
+        size_t batchSize;                       // This might need to change
         double learningRate;
         double decayRate;
-        Matrix lastOutput;
+        Matrix lastOutput;                      // As well as this
 
         Activations::ActivationType networkActType;
         InitType networkInitType;
-        Loss::LossType networkLossType;
+
+        void addOutputLayer();
 
         Matrix forward(const Matrix& X);
         void backward(const Matrix& y_true);
         Matrix onehot(const Matrix& predictions);
+
     
     public:
         Network();
@@ -103,18 +94,15 @@ class Network {
             size_t input_size,
             double learning_rate,
             Activations::ActivationType act_type,
-            InitType init_type,
-            Loss::LossType loss_type
+            InitType init_type
         );
 
         void addLayer(size_t neurons);
         void addLayer(size_t neurons,
                       Activations::ActivationType actType,
                       InitType initType);
-        void addLayer(size_t neurons,
-                      Activations::ActivationType actType,
-                      InitType initType,
-                      bool is_last_layer);
+
+        void compile();
 
         // Every Function from here on down needs to be worked on
         double get_accuracy(const Matrix& predictions, const Matrix& y) const;

@@ -1,23 +1,20 @@
 #include "network.h"
-#include "loss.h"
 #include <iostream>
 #include <algorithm>
 #include <random>
 
 
-// Empty/Default Constructor
-Network::Network(    
+// Empty/Default Constructorl
+Network::Network(
 ) : networkInputSize(784),
     learningRate(0.1),
     decayRate(0.99),
     networkActType(Activations::ActivationType::RELU),
-    networkInitType(InitType::HE),
-    networkLossType(Loss::LossType::CROSS_ENTROPY)
+    networkInitType(InitType::HE)
 {
     addLayer(128);
     addLayer(64);
-    addLayer(10, Activations::ActivationType::SOFTMAX, InitType::XAVIER, true);
-    isCompiled = true;
+    compile();
 }
 
 // Non-empty Constructor
@@ -25,22 +22,21 @@ Network::Network(
     size_t input_size,
     double learning_rate,
     Activations::ActivationType act_type,
-    InitType init_type,
-    Loss::LossType loss_type
+    InitType init_type
 ) : networkInputSize(input_size),
     learningRate(learning_rate),
     decayRate(0.99),
     networkActType(act_type),
     networkInitType(init_type),
-    networkLossType(loss_type),
     batchSize(0),
     isCompiled(false)
 {
     if (learning_rate <= 0.0) {
-        throw std::invalid_argument("Learning Rate must be positive");
-    }
-    if (input_size <= 0) {
-        throw std::invalid_argument("Network Input Size cannot be zero");
+        throw std::invalid_argument("Learning Rate must be Nonzero and Positive");
+    } else if (input_size <= 0) {
+        throw std::invalid_argument("Network Input Size must be Nonzero and Positive");
+    } else if (act_type == Activations::ActivationType::SOFTMAX) {
+        throw std::invalid_argument("Invalid Hidden Layer Activation Function Selection");
     }
 }
 
@@ -56,26 +52,14 @@ Network::Layer::Layer(
     actType(act_type),
     initType(init_type)
 {
+    weights = Matrix(outputSize, inputSize);
+    biases = Matrix(outputSize, 1);                     // What are dimensions?
+
     initialize();
     biases.fill(0.0);
 }
 
-Network::Layer::Layer(
-    size_t input_size,
-    size_t output_size,
-    Activations::ActivationType act_type,
-    InitType init_type,
-    bool is_last_layer
-) : inputSize(input_size),
-    outputSize(output_size),
-    actType(act_type),
-    initType(init_type),
-    isLastLayer(is_last_layer)
-{
-    initialize();
-    biases.fill(0.0);
-}
-
+// Layer Class Private Functions
 void Network::Layer::initialize() {
     switch(initType) {
         case InitType::RANDOM: { weights.randomize(); break; }
@@ -91,6 +75,7 @@ void Network::Layer::updateParams(const Matrix& dWeights, const Matrix& dbiases,
     biases -= learning_rate * dbiases;
 }
 
+// Layer Class Public Functions
 Matrix Network::Layer::forward(const Matrix& X) {
     input = X;
     Matrix Z = (weights * X) + biases;
@@ -102,11 +87,9 @@ Matrix Network::Layer::forward(const Matrix& X) {
 
 Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
     Matrix dZ(outputSize, batch_size);
-    Matrix dWeights(outputSize, inputSize);
     Matrix dbiases(outputSize, 1);
-    Matrix dA_return;
 
-    if (isLastLayer) {
+    if (actType == Activations::ActivationType::SOFTMAX) {
         dZ = dA;
     } else {
         Matrix sigma_prime;
@@ -115,13 +98,14 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
         dZ = dA.hadamard(sigma_prime);
     }
 
-    dWeights = (1.0 / batch_size) * (dZ * input.transpose());
+    Matrix dWeights = (1.0 / batch_size) * (dZ * input.transpose());
+
     for (size_t i = 0; i < batch_size; ++i) {
         dbiases += dZ.getCol(i);
     }
-    dbiases = dbiases / batch_size;
+    dbiases /= batch_size;
 
-    dA_return = weights.transpose() * dZ;
+    Matrix dA_return = weights.transpose() * dZ;
     updateParams(dWeights, dbiases, learning_rate);
 
     return dA_return;
@@ -129,21 +113,16 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
 
 
 // Network Class Implementation
+// Network Class Private Functions
 Matrix Network::forward(const Matrix& X) {
     if (!isCompiled) {
-        if (layers.empty()) {
-            throw std::runtime_error("Must have hidden layers to run forward pass");
-        }
-
-        size_t last_input_size = layers.back().getOutputSize();
-        layers.emplace_back(last_input_size, 10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
-        isCompiled = true;
+        throw std::runtime_error("Network must be Compiled");
     }
 
     if (X.getRows() != networkInputSize) {
         std::cout << "Network Input Size: " << networkInputSize << std::endl;
         std::cout << "Input Variable Size: " << X.getRows() << std::endl;
-        throw std::invalid_argument("Network input size variable not equal to size of input");
+        throw std::invalid_argument("Network Input Size Variable not equal to size of Input");
     }
 
     Matrix A = X;
@@ -159,53 +138,30 @@ void Network::backward(const Matrix& y_true) {
     Matrix dA(y_true.getRows(), y_true.getCols());
     batchSize = y_true.getCols();
 
-    Activations::ActivationType outputLayerActType;
-    outputLayerActType = layers.back().getActivationType();
-
-    // Computing dZ for the Output Layer
-    switch(networkLossType) {
-        case Loss::LossType::CROSS_ENTROPY: {
-            if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
-                dA = (1.0 / batchSize) * (lastOutput - y_true);
-            } else {
-                Matrix dividend = y_true % lastOutput;
-                Matrix psi_prime = Activations::deriv_activate(layers.back().getZ(), outputLayerActType);
-                dA = - (1.0 / batchSize) * dividend.hadamard(psi_prime);
-            }
-
-            break;
-        }
-
-        case Loss::LossType::MSE: {
-            if (outputLayerActType == Activations::ActivationType::SOFTMAX) {
-                for (size_t j = 0; j < batchSize; ++j) {
-                    Matrix Jacobian(lastOutput.getRows(), lastOutput.getRows());
-                    Matrix y_hat = lastOutput.getCol(j);
-
-                    Jacobian = y_hat.diag() - y_hat * y_hat.transpose();
-                    
-                    Matrix dA_colMatrix = Jacobian * (y_hat - y_true.getCol(j));
-                    dA.setCol(j, dA_colMatrix);
-                }
-                
-            } else {
-                Matrix difference = lastOutput - y_true;
-                Matrix psi_prime = Activations::deriv_activate(layers.back().getZ(), outputLayerActType);
-                dA = (1.0 / batchSize) * difference.hadamard(psi_prime); 
-            }
-
-            break;
-        }
-    }
+    dA = lastOutput - y_true;
 
     for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
         dA = layers[i].backward(dA, batchSize, learningRate);
     }
 }
 
+void Network::addOutputLayer() {
+    if (layers.empty()) {
+        throw std::runtime_error("Network must have at least one Hidden Layer");
+    }
+
+    size_t input_dim = layers.back().getOutputSize();
+    layers.emplace_back(input_dim, 10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
+}
+
+// Put onehot() here
+
+// Network Class Public Functions
 void Network::addLayer(size_t neurons) {
-    if (neurons == 0) {
-        throw std::invalid_argument("Layer must have at least one neuron");
+    if (neurons <= 0) {
+        throw std::invalid_argument("Number of neurons must be nonzero and positive");
+    } else if (isCompiled) {
+        throw std::runtime_error("Cannot add Layers once Network is Compiled");
     }
 
     size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
@@ -213,25 +169,50 @@ void Network::addLayer(size_t neurons) {
 }
 
 void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType) {
-    if (neurons == 0) {
-        throw std::invalid_argument("Layer must have at least one neuron");
+    if (neurons <= 0) {
+        throw std::invalid_argument("Number of neurons must be nonzero and positive");
+    } else if (actType == Activations::ActivationType::SOFTMAX) {
+        throw std::invalid_argument("Hidden Layer cannot have Softmax Activation Function");
+    } else if (isCompiled) {
+        throw std::runtime_error("Cannot add Layers once Network is Compiled");
     }
 
     size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
     layers.emplace_back(input_dim, neurons, actType, initType);
 }
 
-void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType, bool is_last_layer) {
-    if (neurons == 0) {
-        throw std::invalid_argument("Layer must have at least one neuron");
+void Network::compile() {
+    if (isCompiled) {
+        throw std::runtime_error("Network is already Compiled");
+    } else if (layers.empty()) {
+        throw std::runtime_error("Network cannot be Compiled with no Hidden Layers");
     }
 
-    size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
-    layers.emplace_back(input_dim, neurons, actType, initType, is_last_layer);
+    size_t expectedInputSize = networkInputSize;
+    for (size_t i = 0; i < layers.size(); ++i) {
+        auto act = layers[i].getActivationType();
+
+        if (act != Activations::ActivationType::RELU && act != Activations::ActivationType::LEAKY_RELU) {
+            throw std::runtime_error(
+                "Invalid Activation Function Type at Layer " + std::to_string(i) +
+                ", Activation Function: " + std::to_string(static_cast<int>(layers[i].getActivationType()))
+            );
+        }
+
+        if (layers[i].getInputSize() != expectedInputSize) {
+            throw std::runtime_error(
+                "Dimension Mismatch at Layer " + std::to_string(i) +
+                ", Expected: " + std::to_string(expectedInputSize) +
+                ", Got: " + std::to_string(layers[i].getInputSize()) + "."
+            );
+        }
+
+        expectedInputSize = layers[i].getOutputSize();
+    }
+
+    addOutputLayer();
+    isCompiled = true;
 }
-
-
-
 
 
 
@@ -312,6 +293,8 @@ double Network::evaluate(const Matrix& X, const Matrix& y) const {
     return get_accuracy(predictions, y);
 }
 
+
+// Compute Loss Bug NEEDS TO BE FIXED - New Loss compute() function in Network Class
 void Network::train(const Matrix& X, const Matrix& y,
                     size_t epochs, size_t batch_size, bool shuffle,
                     const Matrix& X_val, const Matrix& y_val) {
@@ -344,7 +327,7 @@ void Network::train(const Matrix& X, const Matrix& y,
 
         Matrix train_predictions = forward(X);
         double train_accuracy = get_accuracy(train_predictions, y);
-        double train_loss = Loss::compute(y, train_predictions, networkLossType);
+        double train_loss; //Loss::compute(y, train_predictions);
 
         double val_acc = -1;
         if (X_val.getCols() > 0) {
