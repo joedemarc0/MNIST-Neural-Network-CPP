@@ -104,15 +104,16 @@ class Network {
 
         void compile();
 
-        // Every Function from here on down needs to be worked on
-        double get_accuracy(const Matrix& predictions, const Matrix& y) const;
-
+        // train() needs to be reviewed
         void train(const Matrix& X, const Matrix& y,
                    size_t epochs, size_t batch_size, bool shuffle=true,
                    const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix());
         
-        Matrix predict(const Matrix& X) const;
-        double evaluate(const Matrix& X, const Matrix& y) const;
+        double get_accuracy(const Matrix& predictions, const Matrix& y);
+        Matrix predict(const Matrix& X);
+        double evaluate(const Matrix& X, const Matrix& y);
+
+        // These two functions need to be reviewed
         void saveModel(const std::string& filename) const;
         void loadModel(const std::string& filename);
 };

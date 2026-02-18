@@ -53,11 +53,12 @@ Network::Layer::Layer(
     initType(init_type)
 {
     weights = Matrix(outputSize, inputSize);
-    biases = Matrix(outputSize, 1);                     // What are dimensions?
+    biases = Matrix(outputSize, 1);
 
     initialize();
     biases.fill(0.0);
 }
+
 
 // Layer Class Private Functions
 void Network::Layer::initialize() {
@@ -75,8 +76,16 @@ void Network::Layer::updateParams(const Matrix& dWeights, const Matrix& dbiases,
     biases -= learning_rate * dbiases;
 }
 
+
 // Layer Class Public Functions
 Matrix Network::Layer::forward(const Matrix& X) {
+    if (X.getRows() != inputSize) {
+        throw std::invalid_argument(
+            "Dimension Mismatch: Forwarding Matrix X has input size: " + std::to_string(X.getRows()) +
+            ", Layer input size is: " + std::to_string(inputSize)
+        );
+    }
+
     input = X;
     Matrix Z = (weights * X) + biases;
     Matrix A = Activations::activate(Z, actType);
@@ -86,8 +95,8 @@ Matrix Network::Layer::forward(const Matrix& X) {
 }
 
 Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
-    Matrix dZ(outputSize, batch_size);
-    Matrix dbiases(outputSize, 1, 0.0);
+    Matrix dZ;
+    Matrix dbiases(outputSize, 1);
 
     if (actType == Activations::ActivationType::SOFTMAX) {
         dZ = dA;
@@ -99,10 +108,7 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
     }
 
     Matrix dWeights = (1.0 / batch_size) * (dZ * input.transpose());
-
-    for (size_t i = 0; i < batch_size; ++i) {
-        dbiases += dZ.getCol(i);
-    }
+    dbiases = dZ.sumCols();
     dbiases /= batch_size;
 
     Matrix dA_return = weights.transpose() * dZ;
@@ -154,7 +160,26 @@ void Network::addOutputLayer() {
     layers.emplace_back(input_dim, 10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
 }
 
-// Put onehot() here
+Matrix Network::onehot(const Matrix& predictions) {
+    Matrix result(predictions.getRows(), predictions.getCols());
+
+    for (size_t j = 0; j < predictions.getCols(); ++j) {
+        size_t max_index = 0;
+        double max_val = predictions(0, j);
+
+        for (size_t i = 1; i < predictions.getRows(); ++i) {
+            if (predictions(i, j) > max_val) {
+                max_val = predictions(i, j);
+                max_index = i;
+            }
+        }
+
+        result(max_index, j) = 1.0;
+    }
+
+    return result;
+}
+
 
 // Network Class Public Functions
 void Network::addLayer(size_t neurons) {
@@ -214,40 +239,13 @@ void Network::compile() {
     isCompiled = true;
 }
 
+// Put train() here
 
-
-
-
-
-
-// Everything Below needs to be reviewed and corrected
-Matrix Network::onehot(const Matrix& predictions) {
-    if (predictions.getRows() != 10) {
-        throw std::invalid_argument("Predictions Matrix must be 10xm");
-    }
-
-    size_t rows = predictions.getRows();
-    size_t cols = predictions.getCols();
-    Matrix output(rows, cols);
-
-    for (size_t j = 0; j < cols; ++j) {
-        size_t max_index = 0;
-        double max_val = predictions(0, j);
-
-        for (size_t i = 0; i < rows; ++i) {
-            if (predictions(i, j) > max_val) {
-                max_val = predictions(i, j);
-                max_index = i;
-            }
-        }
-
-        output(max_index, j) = 1.0;
-    }
-
-    return output;
+Matrix Network::predict(const Matrix& X) {
+    return forward(X);
 }
 
-double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
+double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
     if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
         throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
     }
@@ -284,14 +282,22 @@ double Network::get_accuracy(const Matrix& predictions, const Matrix& y) const {
     return accuracy;
 }
 
-Matrix Network::predict(const Matrix& X) const {
-    return const_cast<Network*>(this)->forward(X);
+double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
+    // predictions and y should theoretically be onehot encoded
 }
 
-double Network::evaluate(const Matrix& X, const Matrix& y) const {
+double Network::evaluate(const Matrix& X, const Matrix& y) {
     Matrix predictions = predict(X);
     return get_accuracy(predictions, y);
 }
+
+
+
+
+
+
+
+// Everything Below needs to be reviewed and corrected
 
 
 // Compute Loss Bug NEEDS TO BE FIXED - New Loss compute() function in Network Class
