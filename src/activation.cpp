@@ -28,20 +28,21 @@ namespace Activations {
             }
 
             case ActivationType::SOFTMAX: {
-                for (size_t i = 0; i < x.getRows(); ++i) {
-                    double rowMax = x.getRow(i)[0];
-                    for (size_t j = 1; j < x.getCols(); ++j) {
-                        if (x(i, j) > rowMax) rowMax = x(i, j);
+                for (size_t j = 0; j < x.getCols(); ++j) {
+                    double max_val = x(0, j);
+                    for (size_t i = 1; i < x.getRows(); ++i) {
+                        if (x(i, j) > max_val) max_val = x(i, j);
                     }
 
-                    double sumExp = 0.0;
-                    for (size_t j = 0; j < x.getCols(); ++j) {
-                        result(i, j) = std::exp(x(i, j) - rowMax);
-                        sumExp += result(i, j);
+                    double exp_sum = 0.0;
+                    for (size_t i = 0; i < x.getRows(); ++i) {
+                        result(i, j) = std::exp(x(i, j) - max_val);
+                        exp_sum += result(i, j);
                     }
 
-                    for (size_t j = 0; j < x.getCols(); ++j) {
-                        result(i, j) /= sumExp;
+                    for(size_t i = 0; i < x.getRows(); ++i) {
+                        result(i, j) /= exp_sum;
+                        result(i, j) = std::max(result(i, j), 1e-12);
                     }
                 }
                 break;
