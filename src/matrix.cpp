@@ -65,17 +65,27 @@ const double& Matrix::operator()(size_t row, size_t col) const {
 
 // Matrix operations
 Matrix Matrix::operator+(const Matrix& other) const {
-    if (rows != other.rows || cols != other.cols) {
-        throw std::invalid_argument("Matrix dimensions do not match");
-    }
-
-    Matrix result(rows, cols);
-    for (size_t i = 0; i < rows; ++i) {
-        for (size_t j = 0; j < cols; ++j) {
-            result(i, j) = data[i][j] + other(i, j);
+    if (rows == other.rows && cols == other.cols) {
+        Matrix result(rows, cols);
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                result(i, j) = data[i][j] + other(i, j);
+            }
         }
+        return result;
+
+    } else if (rows == other.rows && other.cols == 1) {
+        Matrix result(rows, cols);
+        for (size_t i = 0; i < rows; ++i) {
+            for (size_t j = 0; j < cols; ++j) {
+                result(i, j) = data[i][j] + other(i, 0);
+            }
+        }
+        return result;
+
+    } else {
+        throw std::invalid_argument("Matrix Dimensions do not Match");
     }
-    return result;
 }
 
 Matrix Matrix::operator-(const Matrix& other) const {
