@@ -32,9 +32,9 @@ Network::Network(
     isCompiled(false)
 {
     if (learning_rate <= 0.0) {
-        throw std::invalid_argument("Learning Rate must be Nonzero and Positive");
-    } else if (input_size <= 0) {
-        throw std::invalid_argument("Network Input Size must be Nonzero and Positive");
+        throw std::invalid_argument("Learning Rate must be Positive");
+    } else if (input_size == 0) {
+        throw std::invalid_argument("Network Input Size must be Nonzero");
     } else if (act_type == Activations::ActivationType::SOFTMAX) {
         throw std::invalid_argument("Invalid Hidden Layer Activation Function Selection");
     }
@@ -87,7 +87,7 @@ Matrix Network::Layer::forward(const Matrix& X) {
 
 Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
     Matrix dZ(outputSize, batch_size);
-    Matrix dbiases(outputSize, 1);
+    Matrix dbiases(outputSize, 1, 0.0);
 
     if (actType == Activations::ActivationType::SOFTMAX) {
         dZ = dA;
@@ -158,8 +158,8 @@ void Network::addOutputLayer() {
 
 // Network Class Public Functions
 void Network::addLayer(size_t neurons) {
-    if (neurons <= 0) {
-        throw std::invalid_argument("Number of neurons must be nonzero and positive");
+    if (neurons == 0) {
+        throw std::invalid_argument("Number of Neurons must be Nonzero");
     } else if (isCompiled) {
         throw std::runtime_error("Cannot add Layers once Network is Compiled");
     }
@@ -169,8 +169,8 @@ void Network::addLayer(size_t neurons) {
 }
 
 void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType) {
-    if (neurons <= 0) {
-        throw std::invalid_argument("Number of neurons must be nonzero and positive");
+    if (neurons == 0) {
+        throw std::invalid_argument("Number of neurons must be Nonzero");
     } else if (actType == Activations::ActivationType::SOFTMAX) {
         throw std::invalid_argument("Hidden Layer cannot have Softmax Activation Function");
     } else if (isCompiled) {
