@@ -108,11 +108,13 @@ Matrix Matrix::operator*(const Matrix& other) const {
     }
 
     Matrix result(rows, other.cols);
-    for (size_t i = 0; i << rows; ++i) {
-        for (size_t j = 0; j << other.cols; ++j) {
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < other.cols; ++j) {
+            double sum = 0.0;
             for (size_t k = 0; k < cols; ++k) {
-                result(i, j) += data[i][k] * other(k, j);
+                sum += data[i][k] * other(k, j);
             }
+            result(i, j) = sum;
         }
     }
     return result;
@@ -130,7 +132,7 @@ Matrix Matrix::operator*(double scalar) const {
 }
 
 Matrix Matrix::operator/(double scalar) const {
-    if (scalar == 0.0) {
+    if (std::abs(scalar) < 1e-12) {
         throw std::invalid_argument("Division by zero");
     }
     return *this * (1.0 / scalar);
@@ -159,7 +161,7 @@ Matrix& Matrix::operator*=(double scalar) {
 }
 
 Matrix& Matrix::operator/=(double scalar) {
-    if (scalar == 0.0) {
+    if (std::abs(scalar) < 1e-12) {
         throw std::invalid_argument("Divide by zero error");
     }
 
@@ -179,7 +181,7 @@ bool Matrix::operator==(const Matrix& other) const {
     
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
-            if (data[i][j] != other(i, j)) {
+            if (std::abs(data[i][j] - other(i, j)) > 1e-9) {
                 return false;
             }
         }
@@ -231,11 +233,15 @@ Matrix Matrix::diag() const {
         for (size_t i = 0; i < rows; ++i) {
             result(i, 0) = data[i][i];
         }
-    } if (cols == 1) {
+        return result;
+
+    } else if (cols == 1) {
         Matrix result(rows, rows); 
         for (size_t i = 0; i < rows; ++i) {
             result(i, i) = data[i][0];
         }
+        return result;
+
     } else {
         throw std::runtime_error("Matrix must be of dimension (n x 1) or (n x n)");
     }
@@ -248,7 +254,7 @@ void Matrix::randomize(double min, double max) {
     std::uniform_real_distribution<double> dis(min, max);
 
     for (size_t i = 0; i < rows; ++i) {
-        for (size_t j = 0; j < rows; ++j) {
+        for (size_t j = 0; j < cols; ++j) {
             data[i][j] = dis(gen);
         }
     }
@@ -262,7 +268,7 @@ void Matrix::xavierInit() {
 void Matrix::heInit() {
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    double stddev = std::sqrt(2.0 / rows);
+    double stddev = std::sqrt(2.0 / cols);
     std::normal_distribution<double> dis(0.0, stddev);
 
     for (size_t i = 0; i < rows; ++i) {
@@ -317,6 +323,16 @@ Matrix Matrix::getCol(size_t col) const {
     Matrix result(rows, 1);
     for (size_t i = 0; i < rows; ++i) {
         result(i, 0) = data[i][col];
+    }
+    return result;
+}
+
+Matrix Matrix::sumCols() const {
+    Matrix result(rows, 1);
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            result(i, 0) += data[i][j];
+        }
     }
     return result;
 }
@@ -386,4 +402,21 @@ void Matrix::print() const {
         std::cout << "]" << std::endl;
     }
     std::cout << std::endl;
+}
+
+bool Matrix::hasNaNOrInf() const {
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            if(!std::isfinite(data[i][j])) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+void Matrix::assertFinite() const {
+    if (hasNaNOrInf()) {
+        throw std::runtime_error("NaN or Inf Values Detected");
+    }
 }
