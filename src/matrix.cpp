@@ -190,6 +190,22 @@ bool Matrix::operator==(const Matrix& other) const {
     return true;
 }
 
+bool Matrix::operator!=(const Matrix& other) const {
+    if (rows != other.getRows() || cols != other.getCols()) {
+        return true;
+    }
+
+    for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+            if (std::abs(data[i][j] - other(i ,j)) > 1e-9) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 // Element-wise (Hadamard) product
 Matrix Matrix::hadamard(const Matrix& other) const {
     if (rows != other.rows || cols != other.cols) {
