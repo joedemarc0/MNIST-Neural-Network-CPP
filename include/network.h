@@ -97,6 +97,13 @@ class Network {
             InitType init_type
         );
 
+        // Getters
+        std::vector<Layer> getLayers() const { return layers; }
+        double getLearningRate() const { return learningRate; }
+        double getDecayRate() const { return decayRate; }
+        Activations::ActivationType getNetworkActType() const { return networkActType; }
+        InitType getNetworkInitType() const { return networkInitType; }
+
         void addLayer(size_t neurons);
         void addLayer(size_t neurons,
                       Activations::ActivationType actType,
