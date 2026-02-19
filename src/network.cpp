@@ -23,13 +23,13 @@ Network::Network(
     double learning_rate,
     Activations::ActivationType act_type,
     InitType init_type
-) : networkInputSize(input_size),
+) : isCompiled(false),
+    networkInputSize(input_size),
+    batchSize(0),
     learningRate(learning_rate),
     decayRate(0.99),
     networkActType(act_type),
-    networkInitType(init_type),
-    batchSize(0),
-    isCompiled(false)
+    networkInitType(init_type)
 {
     if (learning_rate <= 0.0) {
         throw std::invalid_argument("Learning Rate must be Positive");
@@ -122,13 +122,14 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
 // Network Class Private Functions
 Matrix Network::forward(const Matrix& X) {
     if (!isCompiled) {
-        throw std::runtime_error("Network must be Compiled");
+        throw std::runtime_error("Network must be compiled");
     }
 
     if (X.getRows() != networkInputSize) {
-        std::cout << "Network Input Size: " << networkInputSize << std::endl;
-        std::cout << "Input Variable Size: " << X.getRows() << std::endl;
-        throw std::invalid_argument("Network Input Size Variable not equal to size of Input");
+        throw std::invalid_argument(
+            "Network Input Size Variable not equal to size of Input - Network Input Size: " +
+            std::to_string(networkInputSize) + ", Input Variable Size: " + std::to_string(X.getRows())
+        );
     }
 
     Matrix A = X;
@@ -245,45 +246,12 @@ Matrix Network::predict(const Matrix& X) {
     return forward(X);
 }
 
+
+
+
+// Obviously need to fix this
 double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
-    if (predictions.getRows() != y.getRows() || predictions.getCols() != y.getCols()) {
-        throw std::invalid_argument("Predictions Matrix and Labels Matrix must have same dimensions");
-    }
-
-    size_t rows = y.getRows();
-    size_t cols = y.getCols();
-    size_t count = 0;
-    
-    for (size_t j = 0; j < cols; ++j) {
-        size_t pred_index = 0;
-        double max_val = predictions(0, j);
-
-        for (size_t i = 0; i < rows; ++i) {
-            if (predictions(i, j) > max_val) {
-                max_val = predictions(i, j);
-                pred_index = i;
-            }
-        }
-
-        size_t y_index = 0;
-        for (size_t i = 0; i < rows; ++i) {
-            if (y(i, j) == 1.0) {
-                y_index = i;
-                break;
-            }
-        }
-
-        if (pred_index == y_index) {
-            count++;
-        }
-    }
-    
-    double accuracy = static_cast<double>(count) / cols;
-    return accuracy;
-}
-
-double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
-    // predictions and y should theoretically be onehot encoded
+    return predictions.sum();
 }
 
 double Network::evaluate(const Matrix& X, const Matrix& y) {
@@ -333,7 +301,7 @@ void Network::train(const Matrix& X, const Matrix& y,
 
         Matrix train_predictions = forward(X);
         double train_accuracy = get_accuracy(train_predictions, y);
-        double train_loss; //Loss::compute(y, train_predictions);
+        double train_loss = 0.0; //Loss::compute(y, train_predictions);
 
         double val_acc = -1;
         if (X_val.getCols() > 0) {
