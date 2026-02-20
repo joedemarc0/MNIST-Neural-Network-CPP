@@ -141,14 +141,14 @@ Matrix Network::forward(const Matrix& X) {
     return lastOutput;
 }
 
-void Network::backward(const Matrix& y_true) {
+void Network::backward(const Matrix& y_true, double learning_rate) {
     Matrix dA(y_true.getRows(), y_true.getCols());
     batchSize = y_true.getCols();
 
     dA = lastOutput - y_true;
 
     for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
-        dA = layers[i].backward(dA, batchSize, learningRate);
+        dA = layers[i].backward(dA, batchSize, learning_rate);
     }
 }
 
@@ -179,6 +179,66 @@ Matrix Network::onehot(const Matrix& predictions) {
     }
 
     return result;
+}
+
+std::vector<Sample> Network::getBatches(
+    const Matrix& X, const Matrix& y,
+    size_t batch_size, bool shuffle
+) {
+    size_t training_size = X.getCols();
+    std::vector<size_t> indices(training_size);
+    std::iota(indices.begin(), indices.end(), 0);
+
+    if (shuffle) {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(indices.begin(), indices.end(), g);
+    }
+
+    std::vector<Sample> batches;
+    for (size_t start = 0; start < training_size; start += batch_size) {
+        size_t end = std::min(start + batch_size, training_size);
+
+        std::vector<size_t> sliced_indices(
+            indices.begin() + start,
+            indices.begin() + end
+        );
+
+        Matrix X_batch = X.sliceCols(sliced_indices);
+        Matrix y_batch = y.sliceCols(sliced_indices);
+
+        batches.emplace_back(X_batch, y_batch);
+    }
+
+    return batches;
+}
+
+size_t Network::getCorrectCount(const Matrix& predictions, const Matrix& y_true) const {
+    if (predictions.getRows() != y_true.getRows() || predictions.getCols() != y_true.getCols()) {
+        throw std::invalid_argument("Predictions and labels matrices must have equal dimensions");
+    }
+
+    size_t batch_size = predictions.getCols();
+    const double epsilon = 1e-6;
+    size_t count = 0;
+
+    for (size_t sample = 0; sample < batch_size; ++sample) {
+        double max_val = predictions(0, sample);
+        size_t max_index = 0;
+
+        for (size_t row = 1; row < predictions.getRows(); ++row) {
+            if (predictions(row, sample) > max_val) {
+                max_val = predictions(row, sample);
+                max_index = row;
+            }
+        }
+
+        if (std::abs(y_true(max_index, sample) - 1.0) < epsilon) {
+            count += 1;
+        }
+    }
+
+    return count;
 }
 
 
@@ -240,85 +300,124 @@ void Network::compile() {
     isCompiled = true;
 }
 
-// Put train() here
-
-Matrix Network::predict(const Matrix& X) {
-    return forward(X);
-}
-
-
-
-
-// Obviously need to fix this
-double Network::get_accuracy(const Matrix& predictions, const Matrix& y) {
-    return predictions.sum();
-}
-
-double Network::evaluate(const Matrix& X, const Matrix& y) {
-    Matrix predictions = predict(X);
-    return get_accuracy(predictions, y);
-}
-
-
-
-
-
-
-
-// Everything Below needs to be reviewed and corrected
-
-
-// Compute Loss Bug NEEDS TO BE FIXED - New Loss compute() function in Network Class
-void Network::train(const Matrix& X, const Matrix& y,
-                    size_t epochs, size_t batch_size, bool shuffle,
-                    const Matrix& X_val, const Matrix& y_val) {
-    
-    if (X.getCols() != y.getCols()) {
-        throw std::invalid_argument("Image and Label sample sizes must match");
-    }
-
-    size_t m = X.getCols();
-    std::vector<size_t> indices(m);
-    std::iota(indices.begin(), indices.end(), 0);
-
+void Network::train(
+    const Matrix& X, const Matrix& y_true,
+    size_t epochs, size_t batch_size, bool shuffle,
+    const Matrix& X_val, const Matrix& y_val,
+    bool streamline
+) {
     for (size_t epoch = 0; epoch < epochs; ++epoch) {
         double eta = learningRate * pow(decayRate, epoch);
-        if (shuffle) {
-            static std::random_device rd;
-            static std::mt19937 g(rd());
-            std::shuffle(indices.begin(), indices.end(), g);
+        size_t training_size = X.getCols();
+        double epoch_loss = 0.0;
+        size_t epoch_corr = 0;
+        size_t total_samples = 0;
+
+        if (streamline) {
+            std::vector<size_t> indices(training_size);
+            std::iota(indices.begin(), indices.end(), 0);
+
+            if (shuffle) {
+                std::random_device rd;
+                std::mt19937 g(rd());
+                std::shuffle(indices.begin(), indices.end(), g);
+            }
+
+            for (size_t start = 0; start < training_size; start += batch_size) {
+                size_t end = std::min(start + batch_size, training_size);
+
+                std::vector<size_t> sliced_indices(
+                    indices.begin() + start,
+                    indices.begin() + end
+                );
+
+                Matrix X_batch = X.sliceCols(sliced_indices);
+                Matrix y_batch = y_true.sliceCols(sliced_indices);
+
+                Matrix predictions = forward(X_batch);
+                backward(y_batch, eta);
+
+                epoch_loss += computeLoss(predictions, y_batch) * X_batch.getCols();
+                epoch_corr += getCorrectCount(predictions, y_batch) * X_batch.getCols();
+                total_samples += X_batch.getCols();
+            }
+        } else {
+            /**
+             * Realistically this method is going to be much much slower because you are allocating memory for previous
+             * and future batches - quicker just to compute and move on
+             * 
+             * However I am incredibly impressed with myself for implementing this because this was a tough part of this project
+             * Therefore I am not going to delete it. Bite me.
+             */
+            std::vector<Sample> batches = getBatches(X, y_true, batch_size, shuffle);
+            for (auto& batch : batches) {
+                Matrix predictions = forward(batch.X);
+                backward(batch.y, eta);
+            }
         }
 
-        for (size_t i = 0; i < m; i += batch_size) {
-            size_t end = std::min(i + batch_size, m);
+        double train_accuracy = static_cast<double>(epoch_corr) / total_samples;
+        double train_loss = epoch_loss / total_samples;
 
-            Matrix X_batch = X.sliceCols(indices, i, end);
-            Matrix y_batch = y.sliceCols(indices, i, end);
-
-            Matrix predictions = forward(X_batch);
-            backward(y_batch);
-        }
-
-        Matrix train_predictions = forward(X);
-        double train_accuracy = get_accuracy(train_predictions, y);
-        double train_loss = 0.0; //Loss::compute(y, train_predictions);
-
-        double val_acc = -1;
+        double val_acc = -1.0;
         if (X_val.getCols() > 0) {
             Matrix val_predictions = forward(X_val);
             val_acc = get_accuracy(val_predictions, y_val);
         }
 
         if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
-            std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "], "
-                    << "Training Accuracy: " << train_accuracy << ", "
-                    << "Validation Accuracy: " << (val_acc >= 0 ? std::to_string(val_acc) : "N/A")
-                    << "Learning Rate: " << eta << ", "
-                    << "Loss: " << train_loss << std::endl;
+            std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
+            std::cout << "Training Accuracy: " << train_accuracy << std::endl;
+            std::cout << "Validation Accuracy: " << (val_acc >= 0.0 ? std::to_string(val_acc) : "N/A") << std::endl;
+            std::cout << "Learning Rate: " << eta << std::endl;
+            std::cout << "Loss: " << train_loss << std::endl;
+            std::cout << std::endl;
         }
-    }    
+    }
 }
 
+Matrix Network::predict(const Matrix& X) {
+    return forward(X);
+}
+
+double Network::get_accuracy(const Matrix& predictions, const Matrix& y_true) const {
+    size_t batch_size = predictions.getCols();
+    return static_cast<double>(getCorrectCount(predictions, y_true)) / batch_size;
+}
+
+double Network::evaluate(const Matrix& X, const Matrix& y_true) {
+    Matrix predictions = predict(X);
+    return get_accuracy(predictions, y_true);
+}
+
+double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) const {
+    if (predictions.getRows() != y_true.getRows() || predictions.getCols() != y_true.getCols()) {
+        throw std::invalid_argument("How could this happen?!?!");
+    }
+
+    size_t batch_size = predictions.getCols();
+    double loss = 0.0;
+    const double epsilon = 1e-12;
+
+    for (size_t sample = 0; sample < batch_size; ++sample) {
+        for (size_t row = 0; row < predictions.getRows(); ++row) {
+            double y_val = y_true(row, sample);
+
+            if (std::abs(y_val - 1.0) < 1e-9) {
+                double p = predictions(row, sample);
+                loss -= std::log(p + epsilon);
+            }
+        }
+    }
+
+    return loss / batch_size;
+}
+
+
+
+
+
+// Everything Below needs to be reviewed and corrected
 void Network::saveModel(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out.is_open()) throw std::runtime_error("Could not open file for saving model");

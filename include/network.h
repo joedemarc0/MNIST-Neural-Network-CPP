@@ -25,6 +25,10 @@
 #include <fstream>
 #include <stdexcept>
 
+struct Sample {
+    Matrix X;
+    Matrix y;
+};
 
 class Network {
     private:
@@ -74,8 +78,8 @@ class Network {
         std::vector<Layer> layers;
         size_t networkInputSize;
         size_t batchSize;                       // This might need to change
-        double learningRate;
-        double decayRate;
+        const double learningRate;
+        const double decayRate;
         Matrix lastOutput;                      // As well as this
 
         Activations::ActivationType networkActType;
@@ -84,9 +88,15 @@ class Network {
         void addOutputLayer();
 
         Matrix forward(const Matrix& X);
-        void backward(const Matrix& y_true);
+        void backward(const Matrix& y_true, double learning_rate);
         Matrix onehot(const Matrix& predictions);
 
+        std::vector<Sample> getBatches(
+            const Matrix& X, const Matrix& y,
+            size_t batch_size, bool shuffle
+        );
+
+        size_t getCorrectCount(const Matrix& predictions, const Matrix& y_true) const;
     
     public:
         Network();
@@ -105,20 +115,26 @@ class Network {
         InitType getNetworkInitType() const { return networkInitType; }
 
         void addLayer(size_t neurons);
-        void addLayer(size_t neurons,
-                      Activations::ActivationType actType,
-                      InitType initType);
+        void addLayer(
+            size_t neurons,
+            Activations::ActivationType actType,
+            InitType initType
+        );
 
         void compile();
 
         // train() needs to be reviewed
-        void train(const Matrix& X, const Matrix& y,
-                   size_t epochs, size_t batch_size, bool shuffle=true,
-                   const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix());
+        void train(
+            const Matrix& X, const Matrix& y,
+            size_t epochs, size_t batch_size, bool shuffle=true,
+            const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix(),
+            bool streamline = true
+        );
         
-        double get_accuracy(const Matrix& predictions, const Matrix& y);
+        double get_accuracy(const Matrix& predictions, const Matrix& y_true) const;
         Matrix predict(const Matrix& X);
-        double evaluate(const Matrix& X, const Matrix& y);
+        double evaluate(const Matrix& X, const Matrix& y_true);
+        double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
 
         // These two functions need to be reviewed
         void saveModel(const std::string& filename) const;
