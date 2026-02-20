@@ -362,7 +362,7 @@ void Network::train(
         double val_acc = -1.0;
         if (X_val.getCols() > 0) {
             Matrix val_predictions = forward(X_val);
-            val_acc = get_accuracy(val_predictions, y_val);
+            val_acc = getAccuracy(val_predictions, y_val);
         }
 
         if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
@@ -380,14 +380,14 @@ Matrix Network::predict(const Matrix& X) {
     return forward(X);
 }
 
-double Network::get_accuracy(const Matrix& predictions, const Matrix& y_true) const {
+double Network::getAccuracy(const Matrix& predictions, const Matrix& y_true) const {
     size_t batch_size = predictions.getCols();
     return static_cast<double>(getCorrectCount(predictions, y_true)) / batch_size;
 }
 
 double Network::evaluate(const Matrix& X, const Matrix& y_true) {
     Matrix predictions = predict(X);
-    return get_accuracy(predictions, y_true);
+    return getAccuracy(predictions, y_true);
 }
 
 double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) const {

@@ -131,7 +131,7 @@ class Network {
             bool streamline = true
         );
         
-        double get_accuracy(const Matrix& predictions, const Matrix& y_true) const;
+        double getAccuracy(const Matrix& predictions, const Matrix& y_true) const;
         Matrix predict(const Matrix& X);
         double evaluate(const Matrix& X, const Matrix& y_true);
         double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
