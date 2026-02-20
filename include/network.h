@@ -28,6 +28,11 @@
 struct Sample {
     Matrix X;
     Matrix y;
+
+    Sample(
+        const Matrix& X_,
+        const Matrix& y_
+    ) : X(X_), y(y_) {}
 };
 
 class Network {
