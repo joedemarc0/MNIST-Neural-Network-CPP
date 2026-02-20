@@ -76,7 +76,7 @@ class Matrix {
         std::vector<double> getRow(size_t row) const;
         Matrix getCol(size_t col) const;
         Matrix sumCols() const;
-        Matrix sliceCols(std::vector<size_t> indices, size_t begin, size_t end) const;
+        Matrix sliceCols(const std::vector<size_t>& sliced_indices) const; 
         void setCol(size_t col, const Matrix& colMatrix);
         void resize(size_t newRows, size_t newCols);
         void print() const;
