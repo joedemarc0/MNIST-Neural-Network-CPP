@@ -177,7 +177,7 @@ MNISTDataset MNISTLoader::load_dataset_binary(const std::string& filename) {
 }
 
 
-
+// MNIST Data Loader Private Functions
 // Function to open image files and read data to a vector
 std::vector<std::vector<uint8_t>> MNISTLoader::read_mnist_images(const std::string& path) {
     std::ifstream file(path, std::ios::binary);

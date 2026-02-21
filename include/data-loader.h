@@ -29,17 +29,6 @@ class MNISTLoader {
         MNISTLoader() = default;
         ~MNISTLoader() = default;
 
-        /**
-         * Load MNIST dataset from ubyte files and process data
-         * @param images_path Path to the MNIST images ubyte file
-         * @param labels_path Path to the MNIST labels ubyte file
-         * @param normalize Whether to normalize pixel values from [0,255] to [0,1]
-         * @param one_hot Whether to convert labels to one-hot encoding (10 classes) or keep as single values
-         * @return MNISTDataset Complete processed dataset with all samples and metadata
-         * 
-         * Reads raw MNIST ubyte files, converts pixel values to doubles, optionally normalizes them,
-         * converts labels to desired format, and calculates dataset statistics
-         */
         MNISTDataset load_dataset(
                     const std::string& images_path,
                     const std::string& labels_path,
@@ -47,45 +36,9 @@ class MNISTLoader {
                     bool one_hot=true
         );
 
-        /**
-         * Load MNIST training dataset using standard filenames
-         * @param data_dir Directory containing MNIST data files
-         * @return MNISTDataset Training dataset (60,000 samples)
-         * 
-         * Convenience function that loads training data using standard MNIST filenames
-         * (train-images.idx3-ubyte and train-labels.idx1-ubyte)
-         */
         MNISTDataset load_training_data(const std::string& data_dir="./data/");
-
-        /**
-         * Load MNIST test dataset using standard filenames  
-         * @param data_dir Directory containing MNIST data files
-         * @return MNISTDataset Test dataset (10,000 samples)
-         * 
-         * Convenience function that loads test data using standard MNIST filenames
-         * (t10k-images.idx3-ubyte and t10k-labels.idx1-ubyte).
-         */
         MNISTDataset load_test_data(const std::string& data_dir="./data/");
-
-        /**
-         * Print comprehensive information about a loaded dataset
-         * @param dataset The MNISTDataset to analyze and display
-         * @return void
-         * 
-         * Display dataset statistics including sample count, dimensions , class distribution,
-         * mean/std pixel value, and samples per digit class
-         */
         void print_dataset_info(const MNISTDataset& dataset);
-
-        /**
-         * Save processed dataset to binary format for faster future loading
-         * @param dataset The MNISTDataset to save
-         * @param filename Output filename for the binary dataset file
-         * @return void
-         * 
-         * Serializes the entire dataset (samples, metadata, statistics) to a binary file
-         * for much faster loading compared to processing ubyte files each time
-         */
         void save_dataset(const MNISTDataset& dataset, const std::string& filename);
 
         /**
