@@ -353,6 +353,10 @@ void Network::train(
             for (auto& batch : batches) {
                 Matrix predictions = forward(batch.X);
                 backward(batch.y, eta);
+
+                epoch_loss += computeLoss(predictions, batch.y) * batch.X.getCols();
+                epoch_corr += getCorrectCount(predictions, batch.y) * batch.X.getCols();
+                total_samples += batch.X.getCols();
             }
         }
 
@@ -367,6 +371,7 @@ void Network::train(
 
         if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
             std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
+            std::cout << "Total Samples Passed: " << total_samples << "/" << training_size << std::endl;
             std::cout << "Training Accuracy: " << train_accuracy << std::endl;
             std::cout << "Validation Accuracy: " << (val_acc >= 0.0 ? std::to_string(val_acc) : "N/A") << std::endl;
             std::cout << "Learning Rate: " << eta << std::endl;
@@ -412,6 +417,8 @@ double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) con
 
     return loss / batch_size;
 }
+
+
 
 
 
