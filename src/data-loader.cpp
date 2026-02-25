@@ -15,46 +15,35 @@ MNISTDataset MNISTLoader::loadDataset(
     const std::string& labels_path,
     bool normalize
 ) {
-    std::cout << "MNISTLoader: reading images from " << images_path << std::endl;
-    RawImages raw_images = readImages(images_path);
+    std::cout << "Loading MNIST data from: " << std::endl;
+    std::cout << "  Images: " << images_path << std::endl;
+    std::cout << "  Labels: " << labels_path << std::endl;
 
-    std::cout << "MNISTLoader: reading labels from " << labels_path << std::endl;
+    RawImages raw_images = readImages(images_path);
     RawLabels raw_labels = readLabels(labels_path);
 
     if (raw_images.num_images != raw_labels.num_labels) {
         throw std::runtime_error(
-            "MNISTLoader: image/label count mismatch (" +
+            "Number of images and labels does not match (" +
             std::to_string(raw_images.num_images) + " images and " +
             std::to_string(raw_labels.num_labels) + " labels)"
         );
     }
 
-    const size_t num_images = raw_images.num_images;
-    const size_t PIXELS = 784;
-    const size_t CLASSES = 10;
-    const double scale = normalize ? (1.0 / 255.0) : 1.0;
+    Matrix X = toMatrix(raw_images, normalize);
+    Matrix y = toOneHot(raw_labels);
 
-    Matrix X(PIXELS, num_images);
-    Matrix y(CLASSES, num_images);
+    std::cout << "MNISTLoader: loaded " << raw_images.num_images << " samples" << std::endl;
 
-    for (size_t col = 0; col < num_images; ++col) {
-        const size_t base = col * PIXELS;
-        for (size_t row = 0; row < PIXELS; ++row) {
-            X(row, col) = static_cast<double>(raw_images.bytes[base + row]) * scale;
-        }
-    }
+    MNISTDataset dataset {
+        std::move(X),
+        std::move(y),
+        raw_images.num_images,
+        raw_images.image_width,
+        raw_images.image_height
+    };
 
-    for (size_t col = 0; col < num_images; ++col) {
-        const size_t class_index = static_cast<size_t>(raw_labels.bytes[col]);
-        if (class_index >= CLASSES) {
-            throw std::runtime_error("MNISTLoader: label out of range: " + std::to_string(class_index));
-        }
-
-        y(class_index, col) = 1.0;
-    }
-
-    std::cout << "MNISTLoader: loaded " << num_images << " samples" << std::endl;
-    return MNISTDataset{ std::move(X), std::move(y), num_images };
+    return dataset;
 }
 
 MNISTDataset MNISTLoader::loadTrainingData(const std::string& data_dir, bool normalize) {
@@ -78,39 +67,44 @@ std::pair<MNISTDataset, MNISTDataset> MNISTLoader::split(
     size_t val_size,
     bool shuffle
 ) {
-    const size_t num_samples = dataset.num_samples;
+    size_t num_samples = dataset.num_samples;
     if (val_size == 0 || val_size >= num_samples) {
-        throw std::invalid_argument("MNISTLoader::split - invalid val_size selection");
+        throw std::invalid_argument("Invalid validation set size selection");
     }
 
     std::vector<size_t> index(num_samples);
     std::iota(index.begin(), index.end(), 0);
 
     if (shuffle) {
-        std::random_device rd;
-        std::mt19937 g(rd());
+        uint32_t seed = 35;
+        std::mt19937 g(seed);
         std::shuffle(index.begin(), index.end(), g);
     }
 
     std::vector<size_t> val_index(index.begin(), index.begin() + val_size);
     std::vector<size_t> train_index(index.begin() + val_size, index.end());
 
-    const size_t train_size = num_samples - val_size;
+    size_t train_size = num_samples - val_size;
 
     MNISTDataset train_data {
         dataset.X.sliceCols(train_index),
         dataset.y.sliceCols(train_index),
-        train_size
+        train_size,
+        dataset.image_width,
+        dataset.image_height
     };
 
     MNISTDataset val_data {
         dataset.X.sliceCols(val_index),
         dataset.y.sliceCols(val_index),
-        val_size
+        val_size,
+        dataset.image_width,
+        dataset.image_height
     };
 
-    std::cout << "MNISTLoader::split - train: " << train_size << std::endl;
-    std::cout << "MNISTLoader::split - val: " << val_size << std::endl;
+    std::cout << "Splitting dataset into training and validation sets" << std::endl;
+    std::cout << "  Training set size: " << train_size << std::endl;
+    std::cout << "  Validation set size: " << val_size << std::endl;
 
     return { std::move(train_data), std::move(val_data) };
 }
@@ -121,16 +115,20 @@ std::pair<MNISTDataset, MNISTDataset> MNISTLoader::split(
     bool shuffle
 ) {
     if (val_percent <= 0.0 || val_percent >= 1.0) {
-        throw std::invalid_argument("MNISTLoader::split - invalid val_percent selection");
+        throw std::invalid_argument("Invalid validation set percentage selection");
     }
 
-    const size_t val_size = std::max<size_t>(1, static_cast<size_t>(std::round(val_percent * dataset.num_samples)));
+    size_t val_size = std::max<size_t>(1, static_cast<size_t>(std::round(val_percent * dataset.num_samples)));
     return split(dataset, val_size, shuffle);
 }
 
 void MNISTLoader::printDatasetInfo(const MNISTDataset& dataset) {
     std::cout << "\n=== MNIST Dataset Information ===" << std::endl;
     std::cout << "Number of samples: " << dataset.num_samples << std::endl;
+    std::cout << "Image dimensions: " << dataset.image_height << "x" << dataset.image_width << std::endl;
+    std::cout << "Number of classes: " << dataset.num_classes << std::endl;
+    std::cout << "Mean pixel value: " << std::endl;
+    std::cout << "STD pixel value: " << std::endl;
 }
 
 void MNISTLoader::saveDataset(const MNISTDataset& dataset, const std::string& filename) {}
@@ -165,17 +163,19 @@ MNISTLoader::RawImages MNISTLoader::readImages(const std::string& path) {
         throw std::runtime_error("Invalid magic number in image file: " + std::to_string(magic_number));
     }
 
-    const size_t pixels_per_image = static_cast<size_t>(num_rows) * num_cols;
-    const size_t total_bytes = static_cast<size_t>(num_images) * pixels_per_image;
+    size_t pixels_per_image = static_cast<size_t>(num_rows) * num_cols;
+    size_t total_bytes = static_cast<size_t>(num_images) * pixels_per_image;
 
     RawImages raw;
     raw.num_images = num_images;
+    raw.image_width = num_cols;
+    raw.image_height = num_rows;
     raw.bytes.resize(total_bytes);
     file.read(reinterpret_cast<char*>(raw.bytes.data()), static_cast<std::streamsize>(total_bytes));
 
     if (!file) {
         throw std::runtime_error(
-            "MNISTLoader: truncated image file (read " +
+            "MNISTLoader: truncated IMAGE file (read " +
             std::to_string(file.gcount()) + " of " +
             std::to_string(total_bytes) + " bytes)"
         );
@@ -209,11 +209,44 @@ MNISTLoader::RawLabels MNISTLoader::readLabels(const std::string& path) {
 
     if (!file) {
         throw std::runtime_error(
-            "MNISTLoader: truncated label file (read " +
+            "MNISTLoader: truncated LABEL file (read " +
             std::to_string(file.gcount()) + " of " +
             std::to_string(num_labels) + " bytes)"
         );
     }
 
     return raw;
+}
+
+Matrix MNISTLoader::toMatrix(const RawImages& raw, bool normalize) {
+    size_t num_images = raw.num_images;
+    size_t num_pixels = raw.image_width * raw.image_height;
+    double scale = normalize ? (1.0 / 255.0) : 1.0;
+
+    Matrix X(num_pixels, num_images);
+    for (size_t col = 0; col < num_images; ++col) {
+        size_t base = col * num_pixels;
+        for (size_t row = 0; row < num_pixels; ++row) {
+            X(row, col) = static_cast<double>(raw.bytes[base + row]);
+        }
+    }
+
+    return X;
+}
+
+Matrix MNISTLoader::toOneHot(const RawLabels& raw) {
+    size_t num_classes = 10;
+    size_t num_labels = raw.num_labels;
+
+    Matrix result(num_classes, num_labels);
+    for (size_t col = 0; col < num_labels; ++col) {
+        size_t class_index = static_cast<size_t>(raw.bytes[col]);
+        if (class_index >= num_classes) {
+            throw std::runtime_error("Label value out of class range");
+        }
+
+        result(class_index, col) = 1.0;
+    }
+
+    return result;
 }

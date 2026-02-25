@@ -1,5 +1,5 @@
-#ifndef DATA_LOADER2_H
-#define DATA_LOADER2_H
+#ifndef DATA_LOADER_H
+#define DATA_LOADER_H
 
 #include "matrix.h"
 #include <vector>
@@ -11,7 +11,11 @@
 struct MNISTDataset {
     Matrix X;
     Matrix y;
+
     size_t num_samples;
+    size_t image_width;
+    size_t image_height;
+    size_t num_classes;
 };
 
 class MNISTLoader {
@@ -37,13 +41,15 @@ class MNISTLoader {
             bool shuffle = true
         );
 
-        void printDatasetInfo(const MNISTDataset& dataset);
-        void saveDataset(const MNISTDataset& dataset, const std::string& filename);
+        static void printDatasetInfo(const MNISTDataset& dataset);
+        static void saveDataset(const MNISTDataset& dataset, const std::string& filename);
     
     private:
         struct RawImages {
             std::vector<uint8_t> bytes;
             uint32_t num_images;
+            uint32_t image_width;
+            uint32_t image_height;
         };
 
         struct RawLabels {
@@ -54,7 +60,9 @@ class MNISTLoader {
         static RawImages readImages(const std::string& path);
         static RawLabels readLabels(const std::string& path);
         static uint32_t swapEndian(uint32_t val);
+        static Matrix toMatrix(const RawImages& raw, bool normalize);
+        static Matrix toOneHot(const RawLabels& raw);
 };
 
 
-#endif // DATA_LOADER2_H
+#endif // DATA_LOADER_H
