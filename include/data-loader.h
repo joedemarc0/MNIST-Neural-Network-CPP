@@ -8,9 +8,21 @@
 #include <cstdint>
 
 
+/**
+ * We should implement toOneHot in network.cpp and pass the labels data
+ * as a vector of bytes rather than as a Matrix
+ * 
+ * That way we can easier implement getAccuracy, getCorrect for efficiency
+ * because we don't NEED to onehot encode for that.
+ * 
+ * OneHot is really only useful for the loss calculation and whatnot
+ * We can pass the labels as a vector for everything else
+ */
+
+
 struct MNISTDataset {
     Matrix X;
-    Matrix y;
+    std::vector<uint8_t> labels;
 
     size_t num_samples;
     size_t image_width;
@@ -55,14 +67,17 @@ class MNISTLoader {
         struct RawLabels {
             std::vector<uint8_t> bytes;
             uint32_t num_labels;
+            uint32_t num_classes;
         };
-
+        
         static RawImages readImages(const std::string& path);
         static RawLabels readLabels(const std::string& path);
         static uint32_t swapEndian(uint32_t val);
         static Matrix toMatrix(const RawImages& raw, bool normalize);
-        static Matrix toOneHot(const RawLabels& raw);
+        static std::vector<uint8_t> sliceCols(
+            const std::vector<uint8_t>& labels,
+            const std::vector<size_t>& sliced_indices
+        );
 };
-
 
 #endif // DATA_LOADER_H

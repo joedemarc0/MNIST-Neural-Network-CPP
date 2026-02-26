@@ -30,17 +30,13 @@ MNISTDataset MNISTLoader::loadDataset(
         );
     }
 
-    Matrix X = toMatrix(raw_images, normalize);
-    Matrix y = toOneHot(raw_labels);
-
-    std::cout << "MNISTLoader: loaded " << raw_images.num_images << " samples" << std::endl;
-
     MNISTDataset dataset {
-        std::move(X),
-        std::move(y),
+        std::move(toMatrix(raw_images, normalize)),
+        raw_labels.bytes,
         raw_images.num_images,
         raw_images.image_width,
-        raw_images.image_height
+        raw_images.image_height,
+        raw_labels.num_classes
     };
 
     return dataset;
@@ -88,18 +84,20 @@ std::pair<MNISTDataset, MNISTDataset> MNISTLoader::split(
 
     MNISTDataset train_data {
         dataset.X.sliceCols(train_index),
-        dataset.y.sliceCols(train_index),
+        sliceCols(dataset.labels, train_index),
         train_size,
         dataset.image_width,
-        dataset.image_height
+        dataset.image_height,
+        dataset.num_classes
     };
 
     MNISTDataset val_data {
         dataset.X.sliceCols(val_index),
-        dataset.y.sliceCols(val_index),
+        sliceCols(dataset.labels, val_index),
         val_size,
         dataset.image_width,
-        dataset.image_height
+        dataset.image_height,
+        dataset.num_classes
     };
 
     std::cout << "Splitting dataset into training and validation sets" << std::endl;
@@ -201,11 +199,17 @@ MNISTLoader::RawLabels MNISTLoader::readLabels(const std::string& path) {
         throw std::runtime_error("Invalid magic number in labels file: " + std::to_string(magic_number));
     }
 
-
     RawLabels raw;
     raw.num_labels = num_labels;
     raw.bytes.resize(num_labels);
     file.read(reinterpret_cast<char*>(raw.bytes.data()), static_cast<std::streamsize>(num_labels));
+
+    uint8_t max_label = 0;
+    for (uint8_t label : raw.bytes) {
+        if (label > max_label) max_label = label;
+    }
+
+    raw.num_classes = static_cast<uint32_t>(max_label) + 1;
 
     if (!file) {
         throw std::runtime_error(
@@ -227,25 +231,22 @@ Matrix MNISTLoader::toMatrix(const RawImages& raw, bool normalize) {
     for (size_t col = 0; col < num_images; ++col) {
         size_t base = col * num_pixels;
         for (size_t row = 0; row < num_pixels; ++row) {
-            X(row, col) = static_cast<double>(raw.bytes[base + row]);
+            X(row, col) = static_cast<double>(raw.bytes[base + row]) * scale;
         }
     }
 
     return X;
 }
 
-Matrix MNISTLoader::toOneHot(const RawLabels& raw) {
-    size_t num_classes = 10;
-    size_t num_labels = raw.num_labels;
+std::vector<uint8_t> MNISTLoader::sliceCols(
+    const std::vector<uint8_t>& labels,
+    const std::vector<size_t>& sliced_indices
+) {
+    size_t batch_size = sliced_indices.size();
+    std::vector<uint8_t> result(batch_size);
 
-    Matrix result(num_classes, num_labels);
-    for (size_t col = 0; col < num_labels; ++col) {
-        size_t class_index = static_cast<size_t>(raw.bytes[col]);
-        if (class_index >= num_classes) {
-            throw std::runtime_error("Label value out of class range");
-        }
-
-        result(class_index, col) = 1.0;
+    for (size_t i = 0; i < batch_size; ++i) {
+        result[i] = labels[sliced_indices[i]];
     }
 
     return result;
