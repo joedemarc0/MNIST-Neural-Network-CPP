@@ -28,6 +28,30 @@ struct MNISTDataset {
     size_t image_width;
     size_t image_height;
     size_t num_classes;
+
+    MNISTDataset(
+    ) : X(),
+        labels(),
+        num_samples(0),
+        image_width(0),
+        image_height(0),
+        num_classes(0)
+    {}
+
+    MNISTDataset(
+        Matrix X_,
+        std::vector<uint8_t> labels_,
+        size_t samples,
+        size_t width,
+        size_t height,
+        size_t classes
+    ) : X(std::move(X_)),
+        labels(std::move(labels_)),
+        num_samples(samples),
+        image_width(width),
+        image_height(height),
+        num_classes(classes)
+    {}
 };
 
 class MNISTLoader {
