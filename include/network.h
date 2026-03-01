@@ -19,20 +19,30 @@
 #include "matrix.h"
 #include "activation.h"
 #include "init.h"
+#include "data-loader.h"
 #include <vector>
 #include <string>
 #include <utility>
 #include <fstream>
 #include <stdexcept>
+#include <variant>
+
 
 struct Sample {
     Matrix X;
-    Matrix y;
+
+    using LabelType = std::variant<Matrix, std::vector<uint8_t>>;
+    LabelType y;
 
     Sample(
-        const Matrix& X_,
-        const Matrix& y_
-    ) : X(X_), y(y_) {}
+        Matrix X_,
+        Matrix y_
+    ) : X(std::move(X_)), y(std::move(y_)) {}
+
+    Sample(
+        Matrix X_,
+        std::vector<uint8_t> labels
+    ) : X(std::move(X_)), y(std::move(labels)) {}
 };
 
 class Network {
@@ -94,14 +104,20 @@ class Network {
 
         Matrix forward(const Matrix& X);
         void backward(const Matrix& y_true, double learning_rate);
-        Matrix onehot(const Matrix& predictions);
+        Matrix toOneHot(const MNISTDataset& dataset) const;
+        Matrix toOneHot(const std::vector<uint8_t> labels, size_t num_classes) const;
 
         std::vector<Sample> getBatches(
             const Matrix& X, const Matrix& y,
             size_t batch_size, bool shuffle
         );
+        std::vector<Sample> getBatches(
+            const MNISTDataset& dataset,
+            size_t batch_size, bool shuffle
+        );
 
         size_t getCorrectCount(const Matrix& predictions, const Matrix& y_true) const;
+        size_t getCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
     
     public:
         Network();
@@ -133,12 +149,22 @@ class Network {
             const Matrix& X, const Matrix& y,
             size_t epochs, size_t batch_size, bool shuffle=true,
             const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix(),
-            bool streamline = true
+            bool streamline=true
+        );
+        void train(
+            const MNISTDataset& dataset,
+            size_t epochs, size_t batch_size, bool shuffle=true,
+            size_t val_size, bool streamline=true
         );
         
         double getAccuracy(const Matrix& predictions, const Matrix& y_true) const;
+        double getAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
         Matrix predict(const Matrix& X);
+
         double evaluate(const Matrix& X, const Matrix& y_true);
+        double evaluate(const MNISTDataset& dataset);
+
+        // Need to add second implementation using labels vector
         double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
 
         // These two functions need to be reviewed
