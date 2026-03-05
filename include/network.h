@@ -30,24 +30,14 @@
 
 struct Sample {
     Matrix X;
+    using LabelType = std::variant<Matrix, std::vector<uint8_t>>; LabelType y;
 
-    using LabelType = std::variant<Matrix, std::vector<uint8_t>>;
-    LabelType y;
-
-    Sample(
-        Matrix X_,
-        Matrix y_
-    ) : X(std::move(X_)), y(std::move(y_)) {}
-
-    Sample(
-        Matrix X_,
-        std::vector<uint8_t> labels
-    ) : X(std::move(X_)), y(std::move(labels)) {}
+    Sample(Matrix X_, Matrix y_) : X(std::move(X_)), y(std::move(y_)) {}
+    Sample (Matrix X_, std::vector<uint8_t> labels) : X(std::move(X_)), y(std::move(labels)) {}
 };
 
 class Network {
     private:
-        // Nested Layer Class
         class Layer {
             private:
                 size_t inputSize;
@@ -76,7 +66,6 @@ class Network {
                 Matrix forward(const Matrix& X);
                 Matrix backward(const Matrix& dA, size_t batch_size, double learning_rate);
 
-                // Getters and Setters
                 Matrix getWeights() const { return weights; }
                 Matrix getBiases() const { return biases; }
                 Matrix getZ() const { return preActivation; }
@@ -92,10 +81,9 @@ class Network {
         bool isCompiled = false;
         std::vector<Layer> layers;
         size_t networkInputSize;
-        size_t batchSize;                       // This might need to change
         const double learningRate;
         const double decayRate;
-        Matrix lastOutput;                      // As well as this
+        Matrix lastOutput;
 
         Activations::ActivationType networkActType;
         InitType networkInitType;
@@ -105,20 +93,17 @@ class Network {
         Matrix forward(const Matrix& X);
         void backward(const Matrix& y_true, double learning_rate);
         Matrix toOneHot(const MNISTDataset& dataset) const;
-        Matrix toOneHot(const std::vector<uint8_t> labels, size_t num_classes) const;
+        Matrix toOneHot(const std::vector<uint8_t>& labels, size_t num_classes) const;
 
-        std::vector<Sample> getBatches(
-            const Matrix& X, const Matrix& y,
-            size_t batch_size, bool shuffle
-        );
-        std::vector<Sample> getBatches(
-            const MNISTDataset& dataset,
-            size_t batch_size, bool shuffle
-        );
+        size_t computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
+        size_t computeCorrectCount(const Matrix& predictions, const Matrix& y_true) const;
 
-        size_t getCorrectCount(const Matrix& predictions, const Matrix& y_true) const;
-        size_t getCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
-    
+        Matrix sliceCols(const Matrix& X, const std::vector<size_t>& indices) const;
+        std::vector<uint8_t> sliceCols(const std::vector<uint8_t>& y, const std::vector<size_t>& indices) const;
+
+        std::vector<Sample> createBatches(const Matrix& X, const std::vector<uint8_t> labels, size_t batch_size, bool shuffle) const;
+        std::vector<Sample> createBatches(const MNISTDataset& dataset, size_t batch_size, bool shuffle) const;
+
     public:
         Network();
         Network(
@@ -139,35 +124,53 @@ class Network {
         void addLayer(
             size_t neurons,
             Activations::ActivationType actType,
-            InitType initType
+            InitType initType    
         );
 
         void compile();
 
-        // train() needs to be reviewed
         void train(
-            const Matrix& X, const Matrix& y,
-            size_t epochs, size_t batch_size, bool shuffle=true,
-            const Matrix& X_val=Matrix(), const Matrix& y_val=Matrix(),
-            bool streamline=true
+            const Matrix& X, const std::vector<uint8_t>& labels,
+            const Matrix& X_val, const std::vector<uint8_t>& labels_val,
+            size_t epochs, size_t batch_size, size_t num_classes,
+            bool shuffle, bool streamline
         );
+
         void train(
             const MNISTDataset& dataset,
-            size_t epochs, size_t batch_size, bool shuffle=true,
-            size_t val_size, bool streamline=true
-        );
-        
-        double getAccuracy(const Matrix& predictions, const Matrix& y_true) const;
-        double getAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
-        Matrix predict(const Matrix& X);
+            const MNISTDataset& val_dataset,
+            size_t epochs, size_t batch_size,
+            bool shuffle, bool streamline
+        ) {
+            train(dataset.X, dataset.labels,
+                val_dataset.X, val_dataset.labels,
+                epochs, batch_size, dataset.num_classes,
+                shuffle, streamline
+            );
+        }
+        void train(
+            const MNISTDataset& dataset,
+            size_t val_size, size_t epochs, size_t batch_size,
+            bool shuffle, bool streamline
+        ) {
+            auto [train_set, val_set] = val_size > 0 ? MNISTLoader::split(dataset, val_size) : std::make_pair(dataset, MNISTDataset{});
+            train(train_set.X, train_set.labels,
+                val_set.X, val_set.labels,
+                epochs, batch_size, dataset.num_classes,
+                shuffle, streamline
+            );
+        }
 
-        double evaluate(const Matrix& X, const Matrix& y_true);
-        double evaluate(const MNISTDataset& dataset);
+        double computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
+        double computeAccuracy(const Matrix& predictions, const Matrix& y_true) const;
+        Matrix predict(const Matrix& X) { return forward(X); }
 
-        // Need to add second implementation using labels vector
+        double evaluate(const Matrix& X, const std::vector<uint8_t>& labels);
+        double evaluate(const MNISTDataset& dataset) { return evaluate(dataset.X, dataset.labels); }
+
         double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
+        double computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
 
-        // These two functions need to be reviewed
         void saveModel(const std::string& filename) const;
         void loadModel(const std::string& filename);
 };

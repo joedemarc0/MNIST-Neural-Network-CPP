@@ -4,7 +4,7 @@
 #include <random>
 
 
-// Empty/Default Constructorl
+// Empty/Default Network Constructor
 Network::Network(
 ) : networkInputSize(784),
     learningRate(0.1),
@@ -25,7 +25,6 @@ Network::Network(
     InitType init_type
 ) : isCompiled(false),
     networkInputSize(input_size),
-    batchSize(0),
     learningRate(learning_rate),
     decayRate(0.99),
     networkActType(act_type),
@@ -54,11 +53,8 @@ Network::Layer::Layer(
 {
     weights = Matrix(outputSize, inputSize);
     biases = Matrix(outputSize, 1);
-
     initialize();
-    biases.fill(0.0);
 }
-
 
 // Layer Class Private Functions
 void Network::Layer::initialize() {
@@ -76,12 +72,11 @@ void Network::Layer::updateParams(const Matrix& dWeights, const Matrix& dbiases,
     biases -= learning_rate * dbiases;
 }
 
-
 // Layer Class Public Functions
 Matrix Network::Layer::forward(const Matrix& X) {
     if (X.getRows() != inputSize) {
         throw std::invalid_argument(
-            "Dimension Mismatch: Forwarding Matrix X has input size: " + std::to_string(X.getRows()) +
+            "Dimension Mismatch: Forwarding matrix X has input size: " + std::to_string(X.getRows()) +
             ", Layer input size is: " + std::to_string(inputSize)
         );
     }
@@ -120,6 +115,16 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
 
 // Network Class Implementation
 // Network Class Private Functions
+void Network::addOutputLayer() {
+    if (layers.empty()) {
+        throw std::runtime_error("Network must have at least one hidden layer");
+    }
+
+    size_t input_dim = layers.back().getOutputSize();
+    size_t output_dim = 10;
+    layers.emplace_back(input_dim, output_dim, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
+}
+
 Matrix Network::forward(const Matrix& X) {
     if (!isCompiled) {
         throw std::runtime_error("Network must be compiled");
@@ -127,7 +132,7 @@ Matrix Network::forward(const Matrix& X) {
 
     if (X.getRows() != networkInputSize) {
         throw std::invalid_argument(
-            "Network Input Size Variable not equal to size of Input - Network Input Size: " +
+            "Network input size variable not equal to size of input - network input size: " +
             std::to_string(networkInputSize) + ", Input Variable Size: " + std::to_string(X.getRows())
         );
     }
@@ -143,109 +148,59 @@ Matrix Network::forward(const Matrix& X) {
 
 void Network::backward(const Matrix& y_true, double learning_rate) {
     Matrix dA(y_true.getRows(), y_true.getCols());
-    batchSize = y_true.getCols();
+    size_t batch_size = y_true.getCols();
 
     dA = lastOutput - y_true;
 
     for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
-        dA = layers[i].backward(dA, batchSize, learning_rate);
+        dA = layers[i].backward(dA, batch_size, learning_rate);
     }
-}
-
-void Network::addOutputLayer() {
-    if (layers.empty()) {
-        throw std::runtime_error("Network must have at least one Hidden Layer");
-    }
-
-    size_t input_dim = layers.back().getOutputSize();
-    layers.emplace_back(input_dim, 10, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
 }
 
 Matrix Network::toOneHot(const MNISTDataset& dataset) const {
-    Matrix result(dataset.num_samples, dataset.num_classes);
+    Matrix result(dataset.num_classes, dataset.num_samples);
     for (size_t col = 0; col < dataset.num_samples; ++col) result(dataset.labels[col], col) = 1.0;
     return result;
 }
 
-Matrix Network::toOneHot(const std::vector<uint8_t> labels, size_t num_classes) const {
-    Matrix result(labels.size(), num_classes);
+Matrix Network::toOneHot(const std::vector<uint8_t>& labels, size_t num_classes) const {
+    Matrix result(num_classes, labels.size());
     for (size_t col = 0; col < labels.size(); ++col) result(labels[col], col) = 1.0;
     return result;
 }
 
-std::vector<Sample> Network::getBatches(
-    const Matrix& X, const Matrix& y,
-    size_t batch_size, bool shuffle
-) {
-    size_t training_size = X.getCols();
-    std::vector<size_t> indices(training_size);
-    std::iota(indices.begin(), indices.end(), 0);
-
-    if (shuffle) {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(indices.begin(), indices.end(), g);
+size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
+    if (predictions.getCols() != labels.size()) {
+        throw std::invalid_argument("Number of predictions not equal to number of labels");
+    } else if (predictions.getRows() != num_classes) {
+        throw std::invalid_argument("Predictions matrix does not match number of classes");
     }
 
-    std::vector<Sample> batches;
-    for (size_t start = 0; start < training_size; start += batch_size) {
-        size_t end = std::min(start + batch_size, training_size);
+    size_t batch_size = predictions.getCols();
+    size_t count = 0;
 
-        std::vector<size_t> sliced_indices(
-            indices.begin() + start,
-            indices.begin() + end
-        );
+    for (size_t sample = 0; sample < batch_size; ++sample) {
+        double max_val = predictions(0, sample);
+        size_t max_index = 0;
 
-        Matrix X_batch = X.sliceCols(sliced_indices);
-        Matrix y_batch = y.sliceCols(sliced_indices);
-
-        batches.emplace_back(X_batch, y_batch);
-    }
-
-    return batches;
-}
-
-std::vector<Sample> Network::getBatches(
-    const MNISTDataset& dataset,
-    size_t batch_size, bool shuffle
-) {
-    size_t training_size = dataset.num_samples;
-    std::vector<size_t> indices(training_size);
-    std::iota(indices.begin(), indices.end(), 0);
-
-    if (shuffle) {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(indices.begin(), indices.end(), g);
-    }
-
-    std::vector<Sample> batches;
-    for (size_t start = 0; start < training_size; start += batch_size) {
-        size_t end = std::min(start + batch_size, training_size);
-
-        std::vector<size_t> sliced_indices(
-            indices.begin() + start,
-            indices.begin() + end
-        );
-
-        Matrix X_batch = dataset.X.sliceCols(sliced_indices);
-
-        std::vector<uint8_t> labels_batch;
-        labels_batch.reserve(sliced_indices.size());
-
-        for (size_t i = 0; i < sliced_indices.size(); ++i) {
-            labels_batch.push_back(dataset.labels[sliced_indices[i]]);
+        for (size_t row = 1; row < num_classes; ++row) {
+            if (predictions(row, sample) > max_val) {
+                max_val = predictions(row, sample);
+                max_index = row;
+            }
         }
 
-        batches.emplace_back(std::move(X_batch), std::move(labels_batch));
+        if (max_index == labels[sample]) {
+            count += 1;
+        }
     }
 
-    return batches;
+    return count;
 }
 
-size_t Network::getCorrectCount(const Matrix& predictions, const Matrix& y_true) const {
-    if (predictions.getRows() != y_true.getRows() || predictions.getCols() != y_true.getCols()) {
-        throw std::invalid_argument("Predictions and labels matrices must have equal dimensions");
+size_t Network::computeCorrectCount(const Matrix& predictions, const Matrix& y_true) const {
+    if (!Matrix::matchDim(predictions, y_true)) {
+        throw std::invalid_argument("Predictions matrix and labels matrix must have matching dimensions");
     }
 
     size_t batch_size = predictions.getCols();
@@ -271,71 +226,99 @@ size_t Network::getCorrectCount(const Matrix& predictions, const Matrix& y_true)
     return count;
 }
 
-size_t Network::getCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
-    if (predictions.getRows() != num_classes) {
-        throw std::invalid_argument("Predictions matrix doesn't match number of classes");
-    } else if (predictions.getCols() != labels.size()) {
-        throw std::invalid_argument("Predictions matrix doesn't match number of samples");
+Matrix Network::sliceCols(const Matrix& X, const std::vector<size_t>& indices) const {
+    size_t batch_size = indices.size();
+    Matrix result(X.getRows(), batch_size);
+
+    for (size_t i = 0; i < batch_size; ++i) {
+        result.setCol(i, X.getCol(indices[i]));
     }
 
-    size_t batch_size = labels.size();
-    size_t count = 0;
+    return result;
+}
 
-    for (size_t sample = 0; sample < batch_size; ++sample) {
-        double max_val = predictions(0, sample);
-        size_t max_index = 0;
+std::vector<uint8_t> Network::sliceCols(const std::vector<uint8_t>& y, const std::vector<size_t>& indices) const {
+    size_t batch_size = indices.size();
+    std::vector<uint8_t> result(batch_size);
 
-        for (size_t row = 1; row < num_classes; ++row) {
-            if (predictions(row, sample) > max_val) {
-                max_val = predictions(row, sample);
-                max_index = row;
-            }
-        }
-
-        if (max_index == static_cast<size_t>(labels[sample])) {
-            count += 1;
-        }
+    for (size_t i = 0; i < batch_size; ++i) {
+        result[i] = y[indices[i]];
     }
+
+    return result;
+}
+
+std::vector<Sample> Network::createBatches(const Matrix& X, const std::vector<uint8_t> labels, size_t batch_size, bool shuffle) const {
+    size_t training_size = X.getCols();
+    std::vector<size_t> indices(training_size);
+    std::iota(indices.begin(), indices.end(), 0);
+
+    if (shuffle) {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(indices.begin(), indices.end(), g);
+    }
+
+    std::vector<Sample> batches;
+    for (size_t start = 0; start < training_size; start += batch_size) {
+        size_t end = std::min(start + batch_size, training_size);
+
+        std::vector<size_t> sliced_indices(
+            indices.begin() + start,
+            indices.begin() + end
+        );
+
+        Matrix X_batch = sliceCols(X, sliced_indices);
+        std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
+
+        batches.emplace_back(X_batch, batch_labels);
+    }
+
+    return batches;
+}
+
+std::vector<Sample> Network::createBatches(const MNISTDataset& dataset, size_t batch_size, bool shuffle) const {
+    return createBatches(dataset.X, dataset.labels, batch_size, shuffle);
 }
 
 
 // Network Class Public Functions
 void Network::addLayer(size_t neurons) {
     if (neurons == 0) {
-        throw std::invalid_argument("Number of Neurons must be Nonzero");
+        throw std::invalid_argument("Number of neurons must be nonzero");
     } else if (isCompiled) {
-        throw std::runtime_error("Cannot add Layers once Network is Compiled");
+        throw std::runtime_error("Cannot add layers once network is Compiled");
     }
 
     size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
     layers.emplace_back(input_dim, neurons, networkActType, networkInitType);
 }
 
-void Network::addLayer(size_t neurons, Activations::ActivationType actType, InitType initType) {
+void Network::addLayer(size_t neurons, Activations::ActivationType act_type, InitType init_type) {
     if (neurons == 0) {
-        throw std::invalid_argument("Number of neurons must be Nonzero");
-    } else if (actType == Activations::ActivationType::SOFTMAX) {
-        throw std::invalid_argument("Hidden Layer cannot have Softmax Activation Function");
+        throw std::invalid_argument("Number of neurons must be nonzero");
+    } else if (act_type == Activations::ActivationType::SOFTMAX) {
+        throw std::invalid_argument("Hidden layer cannot have SOFTMAX activation");
     } else if (isCompiled) {
-        throw std::runtime_error("Cannot add Layers once Network is Compiled");
+        throw std::runtime_error("Cannot add layers once network is compiled");
     }
 
     size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
-    layers.emplace_back(input_dim, neurons, actType, initType);
+    layers.emplace_back(input_dim, neurons, act_type, init_type);
 }
 
 void Network::compile() {
     if (isCompiled) {
-        throw std::runtime_error("Network is already Compiled");
+        throw std::runtime_error("Network is already compiled");
     } else if (layers.empty()) {
-        throw std::runtime_error("Network cannot be Compiled with no Hidden Layers");
+        throw std::runtime_error("Network cannot be compiled with no hidden layers");
     }
 
     size_t expectedInputSize = networkInputSize;
     for (size_t i = 0; i < layers.size(); ++i) {
         auto act = layers[i].getActivationType();
 
-        if (act != Activations::ActivationType::RELU && act != Activations::ActivationType::LEAKY_RELU) {
+        if (act == Activations::ActivationType::SOFTMAX) {
             throw std::runtime_error(
                 "Invalid Activation Function Type at Layer " + std::to_string(i) +
                 ", Activation Function: " + std::to_string(static_cast<int>(layers[i].getActivationType()))
@@ -358,14 +341,15 @@ void Network::compile() {
 }
 
 void Network::train(
-    const Matrix& X, const Matrix& y_true,
-    size_t epochs, size_t batch_size, bool shuffle,
-    const Matrix& X_val, const Matrix& y_val,
-    bool streamline
+    const Matrix& X, const std::vector<uint8_t>& labels,
+    const Matrix& X_val, const std::vector<uint8_t>& labels_val,
+    size_t epochs, size_t batch_size, size_t num_classes,
+    bool shuffle, bool streamline
 ) {
     for (size_t epoch = 0; epoch < epochs; ++epoch) {
         double eta = learningRate * pow(decayRate, epoch);
         size_t training_size = X.getCols();
+
         double epoch_loss = 0.0;
         size_t epoch_corr = 0;
         size_t total_samples = 0;
@@ -388,14 +372,15 @@ void Network::train(
                     indices.begin() + end
                 );
 
-                Matrix X_batch = X.sliceCols(sliced_indices);
-                Matrix y_batch = y_true.sliceCols(sliced_indices);
+                Matrix X_batch = sliceCols(X, sliced_indices);
+                std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
+                Matrix y_batch = toOneHot(batch_labels, num_classes);
 
                 Matrix predictions = forward(X_batch);
                 backward(y_batch, eta);
 
                 epoch_loss += computeLoss(predictions, y_batch) * X_batch.getCols();
-                epoch_corr += getCorrectCount(predictions, y_batch) * X_batch.getCols();
+                epoch_corr += computeCorrectCount(predictions, batch_labels, num_classes) * X_batch.getCols();
                 total_samples += X_batch.getCols();
             }
         } else {
@@ -406,22 +391,21 @@ void Network::train(
              * However I am incredibly impressed with myself for implementing this because this was a tough part of this project
              * Therefore I am not going to delete it. Bite me.
              */
-            std::vector<Sample> batches = getBatches(X, y_true, batch_size, shuffle);
+            std::vector<Sample> batches = createBatches(X, labels, batch_size, shuffle);
             for (auto& batch : batches) {
                 Matrix predictions = forward(batch.X);
                 std::visit([&](auto& labels) {
                     Matrix y_true;
                     if constexpr (std::is_same_v<std::decay_t<decltype(labels)>, std::vector<uint8_t>>) {
-                        y_true = toOneHot(labels, predictions.getRows());
+                        y_true = toOneHot(labels, num_classes);
                     } else {
                         y_true = labels;
                     }
 
                     backward(y_true, eta);
-                    // FIX WITH NEW COMPUTE LOSS FUNCTION
-                    // ALSO FIX getCorrectCount TAKING IN ONLY STD::VECTOR
                     epoch_loss += computeLoss(predictions, y_true) * batch.X.getCols();
-                    epoch_corr += getCorrectCount(predictions, y_true) * batch.X.getCols();
+                    epoch_corr += computeCorrectCount(predictions, y_true) * batch.X.getCols();
+
                 }, batch.y);
 
                 total_samples += batch.X.getCols();
@@ -434,7 +418,7 @@ void Network::train(
         double val_acc = -1.0;
         if (X_val.getCols() > 0) {
             Matrix val_predictions = forward(X_val);
-            val_acc = getAccuracy(val_predictions, y_val);
+            val_acc = computeAccuracy(val_predictions, labels_val, num_classes);
         }
 
         if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
@@ -449,119 +433,18 @@ void Network::train(
     }
 }
 
-void Network::train(
-    const MNISTDataset& dataset,
-    size_t epochs, size_t batch_size, bool shuffle,
-    size_t val_size, bool streamline
-) {
-    auto [train_set, val_set] = val_size > 0 ? MNISTLoader::split(dataset, val_size) : std::make_pair(dataset, MNISTDataset{});
-    for (size_t epoch = 0; epoch < epochs; ++epoch) {
-        double eta = learningRate * pow(decayRate, epoch);
-        size_t training_size = train_set.X.getCols();
-        double epoch_loss = 0.0;
-        size_t epoch_corr = 0;
-        size_t total_samples = 0;
-
-        if (streamline) {
-            std::vector<size_t> indices(training_size);
-            std::iota(indices.begin(), indices.end(), 0);
-
-            if (shuffle) {
-                std::random_device rd;
-                std::mt19937 g(rd());
-                std::shuffle(indices.begin(), indices.end(), g);
-            }
-
-            for (size_t start = 0; start < training_size; start += batch_size) {
-                size_t end = std::min(start + batch_size, training_size);
-
-                std::vector<size_t> sliced_indices(
-                    indices.begin() + start,
-                    indices.begin() + end
-                );
-
-                Matrix X_batch = train_set.X.sliceCols(sliced_indices);
-                Matrix y_batch = toOneHot(train_set).sliceCols(sliced_indices);
-
-                Matrix predictions = forward(X_batch);
-                backward(y_batch, eta);
-
-                // FIX WITH NEW COMPUTE LOSS FUNCTION
-                // ALSO FIX getCorrectCount TAKING IN ONLY STD::VECTOR
-                epoch_loss += computeLoss(predictions, y_batch) * X_batch.getCols();
-                epoch_corr += getCorrectCount(predictions, y_batch);
-                total_samples += X_batch.getCols();
-            }
-        } else {
-            std::vector<Sample> batches = getBatches(train_set, batch_size, shuffle);
-            for (auto& batch : batches) {
-                Matrix predictions = forward(batch.X);
-                std::visit([&](auto& labels) {
-                    Matrix y_true;
-                    if constexpr (std::is_same_v<std::decay_t<decltype(labels)>, std::vector<uint8_t>>) {
-                        y_true = toOneHot(labels, predictions.getRows());
-                    } else {
-                        y_true = labels;
-                    }
-
-                    backward(y_true, eta);
-                    // FIX WITH NEW COMPUTE LOSS FUNCTION
-                    // ALSO FIX getCorrectCount TAKING IN ONLY STD::VECTOR
-                    epoch_loss += computeLoss(predictions, y_true) * batch.X.getCols();
-                    epoch_corr += getCorrectCount(predictions, y_true) * batch.X.getCols();
-                }, batch.y);
-
-                total_samples += batch.X.getCols();
-            }
-        }
-
-        double train_accuracy = static_cast<double>(epoch_corr) / total_samples;
-        double train_loss = epoch_loss / total_samples;
-
-        double val_acc = -1.0;
-        if (val_set.num_samples > 0) {
-            Matrix val_predictions = forward(val_set.X);
-            val_acc = getAccuracy(val_predictions, val_set.labels, val_set.num_classes);
-        }
-
-        if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
-            std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
-            std::cout << "Total Samples Passed: " << total_samples << "/" << training_size << std::endl;
-            std::cout << "Training Accuracy: " << train_accuracy << std::endl;
-            std::cout << "Validation Accuracy: " << (val_acc >= 0.0 ? std::to_string(val_acc) : "N/A") << std::endl;
-            std::cout << "Learning Rate: " << eta << std::endl;
-            std::cout << "Loss: " << train_loss << std::endl;
-            std::cout << std::endl;
-        }
-    }
-}
-
-Matrix Network::predict(const Matrix& X) {
-    return forward(X);
-}
-
-double Network::getAccuracy(const Matrix& predictions, const Matrix& y_true) const {
+double Network::computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
     size_t batch_size = predictions.getCols();
-    return static_cast<double>(getCorrectCount(predictions, y_true)) / batch_size;
+    return static_cast<double>(computeCorrectCount(predictions, labels, num_classes)) / batch_size;
 }
 
-double Network::getAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
+double Network::computeAccuracy(const Matrix& predictions, const Matrix& y_true) const {
     size_t batch_size = predictions.getCols();
-    return static_cast<double>(getCorrectCount(predictions, labels, num_classes)) / batch_size;
-}
-
-double Network::evaluate(const Matrix& X, const Matrix& y_true) {
-    Matrix predictions = predict(X);
-    return getAccuracy(predictions, y_true);
-}
-
-double Network::evaluate(const MNISTDataset& dataset) {
-    Matrix predictions = predict(dataset.X);
-    return getAccuracy(predictions, dataset.labels, dataset.num_classes);
+    return static_cast<double>(computeCorrectCount(predictions, y_true)) / batch_size;
 }
 
 double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) const {
-    if (predictions.getRows() != y_true.getRows() || predictions.getCols() != y_true.getCols()) {
+    if (!Matrix::matchDim(predictions, y_true)) {
         throw std::invalid_argument("How could this happen?!?!");
     }
 
@@ -581,6 +464,11 @@ double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) con
     }
 
     return loss / batch_size;
+}
+
+double Network::computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
+    Matrix y_true = toOneHot(labels, num_classes);
+    return computeLoss(predictions, y_true);
 }
 
 
