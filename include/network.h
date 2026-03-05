@@ -25,7 +25,6 @@
 #include <utility>
 #include <fstream>
 #include <stdexcept>
-#include <variant>
 
 
 class Network {
