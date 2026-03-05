@@ -54,6 +54,14 @@ struct MNISTDataset {
     {}
 };
 
+struct Sample {
+    Matrix X;
+    using LabelType = std::variant<Matrix, std::vector<uint8_t>>; LabelType y;
+
+    Sample(Matrix X_, Matrix y_) : X(std::move(X_)), y(std::move(y_)) {}
+    Sample (Matrix X_, std::vector<uint8_t> labels) : X(std::move(X_)), y(std::move(labels)) {}
+};
+
 class MNISTLoader {
     public:
         static MNISTDataset loadDataset(
