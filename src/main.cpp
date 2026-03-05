@@ -2,25 +2,15 @@
 #include <random>
 #include <opencv2/opencv.hpp>
 #include "data-loader.h"
-#include "visualization.h"
 
 
 int main() {
     try {
         std::cout << "=== MNISTLoader Test ===" << std::endl;
 
-        MNISTLoader loader;
-
         std::cout << "Loading Training Data" << std::endl;
         MNISTDataset train_data = MNISTLoader::loadTrainingData();
         MNISTLoader::printDatasetInfo(train_data);
-
-        if (!train_data.X.empty()) {
-            const auto& first_sample = Sample(train_data.X.getCol(0), std::vector<uint8_t>(train_data.labels[0]));
-            std::cout << "First Sample Details:" << std::endl;
-            std::cout << "Label: " << first_sample.y[0] << std::endl;
-            std::cout << "Number of pixels: " << first_sample.X.getRows();
-        }
 
         std::cout << "Test Completed Successfully..." << std::endl;
     
