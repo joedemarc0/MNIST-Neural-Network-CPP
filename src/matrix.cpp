@@ -314,6 +314,10 @@ void Matrix::identity() {
 }
 
 // Utility Methods
+bool Matrix::matchDim(const Matrix& dis, const Matrix& dat) {
+    return (dis.getRows() == dat.getRows() && dis.getCols() == dat.getCols());
+}
+
 double Matrix::sum() const {
     double total = 0.0;
     for (size_t i = 0; i < rows; ++i) {
