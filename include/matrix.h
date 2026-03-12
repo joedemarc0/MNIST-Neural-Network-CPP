@@ -6,8 +6,8 @@
  * Numpy-lite
  */
 
-#ifndef MATRIX2_H
-#define MATRIX2_H
+#ifndef MATRIX_H
+#define MATRIX_H
 
 #include <vector>
 #include <iostream>
