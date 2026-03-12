@@ -110,6 +110,7 @@ class Network {
         double getDecayRate() const { return decayRate; }
         Activations::ActivationType getNetworkActType() const { return networkActType; }
         InitType getNetworkInitType() const { return networkInitType; }
+        bool checkCompiled() const { return isCompiled; }
 
         void addLayer(size_t neurons);
         void addLayer(
