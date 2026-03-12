@@ -21,19 +21,24 @@ class Matrix {
     
     public:
         Matrix();
-        Matrix(const Matrix& other);
         Matrix(size_t rows, size_t cols);
         Matrix(size_t rows, size_t cols, double value);
+        Matrix(Matrix&& other) noexcept;
+        Matrix(const Matrix& other) = default;
 
         // Getters
         size_t getRows() const { return rows; }
         size_t getCols() const { return cols; }
 
-        // Assignment and Element Access
-        Matrix& operator=(const Matrix& other);
+        // Assignment Operators
+        Matrix& operator=(Matrix&& other) noexcept;
+        Matrix& operator=(const Matrix& other) = default;
+
+        // Element Access Operators
         double& operator()(size_t row, size_t col);
         const double& operator()(size_t row, size_t col) const;
-        inline double& at(size_t row, size_t col);
+        double& at(size_t row, size_t col) { return data[row * cols + col]; }
+        const double& at(size_t row, size_t col) const { return data[row * cols + col]; }
 
         // Matrix Operations
         Matrix operator+(const Matrix& other) const;

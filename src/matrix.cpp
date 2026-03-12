@@ -8,28 +8,32 @@
 // Matrix Class Constructors
 Matrix::Matrix() : rows(0), cols(0) {}
 
-Matrix::Matrix(const Matrix& other) : rows(other.rows), cols(other.cols), data(other.data) {}
+Matrix::Matrix(size_t rows, size_t cols)
+    : rows(rows), cols(cols), data(rows * cols, 0.0) {}
 
-Matrix::Matrix(size_t rows, size_t cols) : rows(rows), cols(cols) {
-    data.resize(rows * cols, 0.0);
+Matrix::Matrix(size_t rows, size_t cols, double value)
+    : rows(rows), cols(cols), data(rows * cols, value) {}
+
+Matrix::Matrix(Matrix&& other) noexcept
+    : rows(other.rows), cols(other.cols), data(std::move(other.data)) {
+    other.rows = other.cols = 0;
 }
 
-Matrix::Matrix(size_t rows, size_t cols, double value) : rows(rows), cols(cols) {
-    data.resize(rows * cols, value);
-}
 
-
-// Assignment and Element Access
-Matrix& Matrix::operator=(const Matrix& other) {
+// Assignment Operators
+Matrix& Matrix::operator=(Matrix&& other) noexcept {
     if (this != &other) {
         rows = other.rows;
         cols = other.cols;
-        data = other.data;
+        data = std::move(other.data);
+        other.rows = other.cols = 0;
     }
 
     return *this;
 }
 
+
+// Element Access Operators
 double& Matrix::operator()(size_t row, size_t col) {
     if (row >= rows || col >= cols) {
         throw std::out_of_range("Matrix Operator (): Matrix index out of range");
