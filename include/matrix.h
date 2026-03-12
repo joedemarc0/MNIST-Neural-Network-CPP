@@ -6,8 +6,8 @@
  * Numpy-lite
  */
 
-#ifndef MATRIX_H
-#define MATRIX_H
+#ifndef MATRIX2_H
+#define MATRIX2_H
 
 #include <vector>
 #include <iostream>
@@ -16,65 +16,63 @@
 
 class Matrix {
     private:
-        std::vector<std::vector<double>> data;
+        std::vector<double> data;
         size_t rows, cols;
     
     public:
-        // Constructors
         Matrix();
+        Matrix(const Matrix& other);
         Matrix(size_t rows, size_t cols);
         Matrix(size_t rows, size_t cols, double value);
-        Matrix(const Matrix& other);
-
-        // Assignment operator
-        Matrix& operator=(const Matrix& other);
 
         // Getters
         size_t getRows() const { return rows; }
         size_t getCols() const { return cols; }
 
-        // Element access
+        // Assignment and Element Access
+        Matrix& operator=(const Matrix& other);
         double& operator()(size_t row, size_t col);
         const double& operator()(size_t row, size_t col) const;
+        inline double& at(size_t row, size_t col);
 
-        // Matrix operations
+        // Matrix Operations
         Matrix operator+(const Matrix& other) const;
         Matrix operator-(const Matrix& other) const;
         Matrix operator*(const Matrix& other) const;
 
-        // Scalar operations
+        // Scalar Operations
         Matrix operator*(double scalar) const;
-        Matrix operator/(double scaler) const;
+        Matrix operator/(double scalar) const;
 
-        // In-place Matrix operations
+        // In-place Matrix Operations
         Matrix& operator+=(const Matrix& other);
         Matrix& operator-=(const Matrix& other);
 
-        // In-place Scalar operations
+        // In-place Scalar Operations
         Matrix& operator*=(double scalar);
         Matrix& operator/=(double scalar);
 
-        // Boolean operation
+        // Boolean Operations
         bool operator==(const Matrix& other) const;
         bool operator!=(const Matrix& other) const;
 
-        // Specialized operations
+        // Specialized Operations
         Matrix hadamard(const Matrix& other) const;
         Matrix transpose() const;
         Matrix apply(std::function<double(double)> func) const;
         Matrix diag() const;
 
-        // Initializations methods
-        void randomize(double min=-1.0, double max=1.0);
+        // Initialization Methods
+        void randomize(double min=0.0, double max=1.0);
         void xavierInit();
         void heInit();
         void fill(double value);
-        void identity();
+        static Matrix identity(size_t dim);
 
-        // Utility methods
-        static bool matchDim(const Matrix& dis, const Matrix& dat);
+        // Utility Methods
+        static bool matchDim(const Matrix& a, const Matrix& b);
         double sum() const;
-        std::vector<double> getRow(size_t row) const;
+        Matrix getRow(size_t row) const;
         Matrix getCol(size_t col) const;
         Matrix sumCols() const;
         Matrix sliceCols(const std::vector<size_t>& sliced_indices) const;
@@ -93,8 +91,9 @@ inline Matrix operator*(double scalar, const Matrix& matrix) {
 
 // Stream output operator
 inline std::ostream& operator<<(std::ostream& os, const Matrix& matrix) {
-    os << "Matrix(" << matrix.getRows() << "x" << matrix.getCols() << ")";
+    os << "Matrix(" << matrix.getRows() << ", " << matrix.getCols() << ")";
     return os;
 }
+
 
 #endif // MATRIX_H
