@@ -90,7 +90,7 @@ class Matrix {
 };
 
 // External scalar multiplication (scalar * matrix)
-inline Matrix operator*(double scalar, const Matrix& matrix) {
+inline Matrix operator*(const double scalar, const Matrix& matrix) {
     return matrix * scalar;
 }
 
