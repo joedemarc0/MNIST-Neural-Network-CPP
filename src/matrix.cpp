@@ -19,7 +19,7 @@ Matrix::Matrix(size_t rows, size_t cols, double value) : rows(rows), cols(cols) 
 }
 
 
-// Assigment and Element Access
+// Assignment and Element Access
 Matrix& Matrix::operator=(const Matrix& other) {
     if (this != &other) {
         rows = other.rows;
@@ -90,7 +90,7 @@ Matrix Matrix::operator*(const Matrix& other) const {}
 
 
 // Scalar Operations
-Matrix Matrix::operator*(double scalar) const{
+Matrix Matrix::operator*(double scalar) const {
     Matrix result(rows, cols);
     for (size_t i = 0; i < data.size(); ++i) {
         result.data[i] = data[i] * scalar;
@@ -136,8 +136,8 @@ Matrix& Matrix::operator-=(const Matrix& other) {
 
 // In-place Scalar Operations
 Matrix& Matrix::operator*=(double scalar) {
-    for (size_t i = 0; i < data.size(); ++i) {
-        data[i] *= scalar;
+    for (double &v : data) {
+        v *= scalar;
     }
 
     return *this;
@@ -148,15 +148,15 @@ Matrix& Matrix::operator/=(double scalar) {
         throw std::invalid_argument("Matrix Operator (/=): Divide by zero error");
     }
 
-    for (size_t i = 0; i < data.size(); ++i) {
-        data[i] /= scalar;
+    for (double &v : data) {
+        v /= scalar;
     }
 
     return *this;
 }
 
 
-// Boolean Operator
+// Boolean Operations
 bool Matrix::operator==(const Matrix& other) const {
     if (!matchDim(*this, other)) {
         return false;
