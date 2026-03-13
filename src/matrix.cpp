@@ -55,11 +55,12 @@ const double& Matrix::operator()(size_t row, size_t col) const {
 Matrix Matrix::operator+(const Matrix& other) const {
     const double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
+    const size_t n = data.size();
 
     if (matchDim(*this, other)) {
         Matrix result(rows, cols);
         double* __restrict r = result.data.data();
-        for (size_t i = 0; i < data.size(); ++i) r[i] = a[i] + b[i];
+        for (size_t i = 0; i < n; ++i) r[i] = a[i] + b[i];
         return result;
     } else if (rows == other.rows && other.cols == 1) {
         Matrix result(rows, cols);
@@ -86,7 +87,9 @@ Matrix Matrix::operator-(const Matrix& other) const {
     const double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
     double* __restrict r = result.data.data();
-    for (size_t i = 0; i < data.size(); ++i) r[i] = a[i] - b[i];
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) r[i] = a[i] - b[i];
     return result;
 }
 
@@ -120,7 +123,9 @@ Matrix Matrix::operator*(double scalar) const {
     Matrix result(rows, cols);
     const double* __restrict a = data.data();
     double* __restrict r = result.data.data();
-    for (size_t i = 0; i < data.size(); ++i) r[i] = a[i] * scalar;
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) r[i] = a[i] * scalar;
     return result;
 }
 
@@ -141,7 +146,9 @@ Matrix& Matrix::operator+=(const Matrix& other) {
 
     double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
-    for (size_t i = 0; i < data.size(); ++i) a[i] += b[i];
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) a[i] += b[i];
     return *this;
 }
 
@@ -152,7 +159,9 @@ Matrix& Matrix::operator-=(const Matrix& other) {
 
     double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
-    for (size_t i = 0; i < data.size(); ++i) a[i] -= b[i];
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) a[i] -= b[i];
     return *this;
 }
 
@@ -180,10 +189,8 @@ bool Matrix::operator==(const Matrix& other) const {
     const double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
 
-    for (size_t i = 0; i < data.size(); ++i) {
-        if (std::abs(a[i] - b[i]) > 1e-9) return false;
-    }
-
+    const size_t n = data.size();
+    for (size_t i = 0; n; ++i) if (std::abs(a[i] - b[i]) > 1e-9) return false;
     return true;
 }
 
@@ -202,7 +209,9 @@ Matrix Matrix::hadamard(const Matrix& other) const {
     const double* __restrict a = data.data();
     const double* __restrict b = other.data.data();
     double* __restrict r = result.data.data();
-    for (size_t i = 0; i < data.size(); ++i) r[i] = a[i] * b[i];
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) r[i] = a[i] * b[i];
     return result;
 }
 
@@ -224,7 +233,9 @@ Matrix Matrix::apply(std::function<double(double)> func) const {
     Matrix result(rows, cols);
     const double* __restrict a = data.data();
     double* __restrict r = result.data.data();
-    for (size_t i = 0; i < data.size(); ++i) r[i] = func(a[i]);
+
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) r[i] = func(a[i]);
     return result;
 }
 
