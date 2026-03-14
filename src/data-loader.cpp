@@ -31,7 +31,7 @@ MNISTDataset MNISTLoader::loadDataset(
     }
 
     MNISTDataset dataset {
-        std::move(toMatrix(raw_images, normalize)),
+        toMatrix(raw_images, normalize),
         raw_labels.bytes,
         raw_images.num_images,
         raw_images.image_width,

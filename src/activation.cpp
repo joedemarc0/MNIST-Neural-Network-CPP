@@ -2,7 +2,7 @@
 #include <cmath>
 #include <algorithm>
 
-using Activations::ActivationType;
+using namespace Activations;
 
 
 Matrix Activations::activate(const Matrix& x, ActivationType type) {

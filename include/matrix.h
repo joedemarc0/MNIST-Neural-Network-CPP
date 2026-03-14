@@ -16,8 +16,8 @@
 
 class Matrix {
     private:
-        std::vector<double> data;
         size_t rows, cols;
+        std::vector<double> data;
     
     public:
         Matrix();
