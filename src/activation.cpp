@@ -55,3 +55,12 @@ Matrix Activations::deriv_activate(const Matrix& x, ActivationType type) {
         default: throw std::runtime_error("Activation type unspecified");
     }
 }
+
+std::string Activations::to_string(ActivationType type) {
+    switch(type) {
+        case ActivationType::RELU: return "RELU";
+        case ActivationType::LEAKY_RELU: return "LEAKY RELU";
+        case ActivationType::SOFTMAX: return "SOFTMAX";
+        default: throw std::runtime_error("Activation type unspecified");
+    }
+}
