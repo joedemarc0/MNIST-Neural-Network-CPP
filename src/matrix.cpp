@@ -229,16 +229,6 @@ Matrix Matrix::transpose() const {
     return result;
 }
 
-Matrix Matrix::apply(std::function<double(double)> func) const {
-    Matrix result(rows, cols);
-    const double* __restrict a = data.data();
-    double* __restrict r = result.data.data();
-
-    const size_t n = data.size();
-    for (size_t i = 0; i < n; ++i) r[i] = func(a[i]);
-    return result;
-}
-
 Matrix Matrix::diag() const {
     const double* __restrict a = data.data();
 

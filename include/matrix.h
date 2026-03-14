@@ -40,6 +40,18 @@ class Matrix {
         double& at(size_t row, size_t col) { return data[row * cols + col]; }
         const double& at(size_t row, size_t col) const { return data[row * cols + col]; }
 
+        // Function applying
+        template<typename Fn>
+        Matrix apply(Fn&& func) const {
+            Matrix result(rows, cols);
+            const double* __restrict a = data.data();
+            double* __restrict r = result.data.data();
+
+            const size_t n = data.size();
+            for (size_t i = 0; i < n; ++i) r[i] = func(a[i]);
+            return result;
+        }
+
         // Matrix Operations
         Matrix operator+(const Matrix& other) const;
         Matrix operator-(const Matrix& other) const;
@@ -64,7 +76,6 @@ class Matrix {
         // Specialized Operations
         Matrix hadamard(const Matrix& other) const;
         Matrix transpose() const;
-        Matrix apply(std::function<double(double)> func) const;
         Matrix diag() const;
 
         // Initialization Methods
