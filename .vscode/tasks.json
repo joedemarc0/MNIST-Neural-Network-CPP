@@ -24,7 +24,7 @@
         {
             "label": "Run Benchmark Tests",
             "type": "shell",
-            "command": "clang++ -std=c++17 -O3 -Wall benchmarks/matrix-benchmark.cpp src/matrix.cpp -Iinclude -o benchmark.out",
+            "command": "clang++ -std=c++17 -O2 benchmarks/*.cpp $(find src -name '*.cpp' ! -name 'main.cpp') -Iinclude -o benchmark.out",
             "group": {
                 "kind": "build"
             },
