@@ -268,7 +268,7 @@ std::vector<Sample> Network::createBatches(const Matrix& X, const std::vector<ui
             indices.begin() + end
         );
 
-        Matrix X_batch = sliceCols(X, sliced_indices);
+        Matrix X_batch = X.sliceCols(sliced_indices);
         std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
 
         batches.emplace_back(X_batch, batch_labels);
@@ -372,7 +372,7 @@ void Network::train(
                     indices.begin() + end
                 );
 
-                Matrix X_batch = sliceCols(X, sliced_indices);
+                Matrix X_batch = X.sliceCols(sliced_indices);
                 std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
                 Matrix y_batch = toOneHot(batch_labels, num_classes);
 
@@ -380,7 +380,7 @@ void Network::train(
                 backward(y_batch, eta);
 
                 epoch_loss += computeLoss(predictions, y_batch) * X_batch.getCols();
-                epoch_corr += computeCorrectCount(predictions, batch_labels, num_classes) * X_batch.getCols();
+                epoch_corr += computeCorrectCount(predictions, batch_labels, num_classes);
                 total_samples += X_batch.getCols();
             }
         } else {
@@ -404,7 +404,7 @@ void Network::train(
 
                     backward(y_true, eta);
                     epoch_loss += computeLoss(predictions, y_true) * batch.X.getCols();
-                    epoch_corr += computeCorrectCount(predictions, y_true) * batch.X.getCols();
+                    epoch_corr += computeCorrectCount(predictions, y_true);
 
                 }, batch.y);
 
@@ -421,7 +421,7 @@ void Network::train(
             val_acc = computeAccuracy(val_predictions, labels_val, num_classes);
         }
 
-        if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
+        if ((epoch + 1) % 1 == 0 || epoch + 1 == epochs - 1) {
             std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
             std::cout << "Total Samples Passed: " << total_samples << "/" << training_size << std::endl;
             std::cout << "Training Accuracy: " << train_accuracy << std::endl;
