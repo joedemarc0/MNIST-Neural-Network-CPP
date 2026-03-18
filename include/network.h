@@ -140,6 +140,7 @@ class Network {
                 shuffle, streamline, verbose
             );
         }
+        
         void train(
             const MNISTDataset& dataset,
             size_t val_size, size_t epochs, size_t batch_size,

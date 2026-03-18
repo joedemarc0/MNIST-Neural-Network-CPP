@@ -68,8 +68,8 @@ void Network::Layer::initialize() {
 }
 
 void Network::Layer::updateParams(const Matrix& dWeights, const Matrix& dbiases, double learning_rate) {
-    weights -= learning_rate * dWeights;
-    biases -= learning_rate * dbiases;
+    weights.updateScaled(dWeights, -learning_rate);
+    biases.updateScaled(dbiases, -learning_rate);
 }
 
 // Layer Class Public Functions
@@ -478,15 +478,19 @@ double Network::computeLoss(const Matrix& predictions, const std::vector<uint8_t
     return computeLoss(predictions, y_true);
 }
 
-
-
-
-
-
-// Everything Below needs to be reviewed and corrected
 void Network::saveModel(const std::string& filename) const {
     std::ofstream out(filename);
-    if (!out.is_open()) throw std::runtime_error("Could not open file for saving model");
+    if (!out.is_open()) {
+        throw std::runtime_error("Could not open file for saving");
+    }
+
+    out << static_cast<int>(isCompiled) << std::endl;
+    out << networkInputSize << std::endl;
+    out << learningRate << std::endl;
+    out << decayRate << std::endl;
+
+    out << static_cast<int>(networkActType) << std::endl;
+    out << static_cast<int>(networkInitType) << std::endl;
 
     out << layers.size() << std::endl;
     for (const auto& layer : layers) {
@@ -494,29 +498,32 @@ void Network::saveModel(const std::string& filename) const {
             << layer.getOutputSize() << " "
             << static_cast<int>(layer.getActivationType()) << " "
             << static_cast<int>(layer.getInitType()) << std::endl;
-
+        
         const Matrix& W = layer.getWeights();
         out << W.getRows() << " " << W.getCols() << std::endl;
-        for (size_t i = 0; i < W.getRows(); ++i) {
-            for (size_t j = 0; j < W.getCols(); ++j) {
-                out << W(i, j) << " ";
+        for (size_t row = 0; row < W.getRows(); ++row) {
+            for (size_t col = 0; col < W.getCols(); ++col) {
+                out << W.at(row, col) << " ";
             }
-            out << std::endl;
         }
 
         const Matrix& b = layer.getBiases();
         out << b.getRows() << " " << b.getCols() << std::endl;
-        for (size_t i = 0; i < b.getRows(); ++i) {
-            for (size_t j = 0; j < b.getCols(); ++j) {
-                out << b(i, j) << " ";
+        for (size_t row = 0; row < b.getRows(); ++row) {
+            for (size_t col = 0; col < b.getCols(); ++col) {
+                out << b.at(row, col) << " ";
             }
-            out << std::endl;
         }
     }
-
-    out.close();
 }
 
+
+
+
+
+
+
+// Need to finish
 void Network::loadModel(const std::string& filename) {
     std::ifstream in(filename);
     if (!in.is_open()) throw std::runtime_error("Could not open file for loading model");
