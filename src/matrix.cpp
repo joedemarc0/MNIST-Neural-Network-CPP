@@ -200,6 +200,17 @@ bool Matrix::operator!=(const Matrix& other) const {
 
 
 // Specialized Operations
+void Matrix::updateScaled(const Matrix& other, double scalar) {
+    if (!matchDim(*this, other)) {
+        throw std::invalid_argument("Matrix::updateScalaed(): Matrix dimensions must match");
+    }
+
+    double* __restrict a = data.data();
+    const double* __restrict b = other.data.data();
+    const size_t n = data.size();
+    for (size_t i = 0; i < n; ++i) a[i] += b[i] * scalar;
+}
+
 Matrix Matrix::hadamard(const Matrix& other) const {
     if (!matchDim(*this, other)) {
         throw std::invalid_argument("Matrix::hadamard(): Matrix dimensions must match");
@@ -220,9 +231,14 @@ Matrix Matrix::transpose() const {
     const double* __restrict a = data.data();
     double* __restrict r = result.data.data();
 
-    for (size_t row = 0; row < rows; ++row) {
-        for (size_t col = 0; col < cols; ++col) {
-            r[col * rows + row] = a[row * cols + col];
+    constexpr size_t BLOCK = 32;
+    for (size_t i = 0; i < rows; i += BLOCK) {
+        for (size_t j = 0; j < cols; j += BLOCK) {
+            for (size_t ii = i; ii < std::min(i + BLOCK, rows); ++ii) {
+                for (size_t jj = j; jj < std::min(j + BLOCK, cols); ++jj) {
+                    r[jj * rows + ii] = a[ii * cols + jj];
+                }
+            }
         }
     }
 

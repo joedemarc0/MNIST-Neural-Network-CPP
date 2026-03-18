@@ -74,6 +74,7 @@ class Matrix {
         bool operator!=(const Matrix& other) const;
 
         // Specialized Operations
+        void updateScaled(const Matrix& other, double scalar);
         Matrix hadamard(const Matrix& other) const;
         Matrix transpose() const;
         Matrix diag() const;
