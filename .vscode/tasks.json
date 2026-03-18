@@ -4,7 +4,7 @@
         {
             "label": "Build MNIST Project",
             "type": "shell",
-            "command": "clang++ -std=c++17 -O3 -Wall src/*.cpp -Iinclude $(pkg-config --cflags --libs opencv4) -o main.out",
+            "command": "clang++ -std=c++17 -O3 -mcpu=native -Wall src/*.cpp -Iinclude $(pkg-config --cflags --libs opencv4) -o main.out",
             "group": {
                 "kind": "build"
             },
@@ -14,7 +14,7 @@
         {
             "label": "Build Tests",
             "type": "shell",
-            "command": "clang++ -std=c++17 -O3 -Wall tests/*.cpp $(find src -name '*.cpp' ! -name 'main.cpp') -Iinclude $(pkg-config --cflags --libs opencv4) -o tests.out",
+            "command": "clang++ -std=c++17 -O3 -mcpu=native -Wall tests/*.cpp $(find src -name '*.cpp' ! -name 'main.cpp') -Iinclude $(pkg-config --cflags --libs opencv4) -o tests.out",
             "group": {
                 "kind": "build"
             },
@@ -24,7 +24,7 @@
         {
             "label": "Run Benchmark Tests",
             "type": "shell",
-            "command": "clang++ -std=c++17 -O2 benchmarks/*.cpp $(find src -name '*.cpp' ! -name 'main.cpp') -Iinclude -o benchmark.out",
+            "command": "clang++ -std=c++17 -O3 -mcpu=native benchmarks/*.cpp $(find src -name '*.cpp' ! -name 'main.cpp') -Iinclude -o benchmark.out",
             "group": {
                 "kind": "build"
             },
