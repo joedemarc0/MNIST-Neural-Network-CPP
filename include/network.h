@@ -125,31 +125,31 @@ class Network {
             const Matrix& X, const std::vector<uint8_t>& labels,
             const Matrix& X_val, const std::vector<uint8_t>& labels_val,
             size_t epochs, size_t batch_size, size_t num_classes,
-            bool shuffle, bool streamline
+            bool shuffle, bool streamline, bool verbose=true
         );
 
         void train(
             const MNISTDataset& dataset,
             const MNISTDataset& val_dataset,
             size_t epochs, size_t batch_size,
-            bool shuffle, bool streamline
+            bool shuffle, bool streamline, bool verbose=true
         ) {
             train(dataset.X, dataset.labels,
                 val_dataset.X, val_dataset.labels,
                 epochs, batch_size, dataset.num_classes,
-                shuffle, streamline
+                shuffle, streamline, verbose
             );
         }
         void train(
             const MNISTDataset& dataset,
             size_t val_size, size_t epochs, size_t batch_size,
-            bool shuffle, bool streamline
+            bool shuffle, bool streamline, bool verbose=true
         ) {
             auto [train_set, val_set] = val_size > 0 ? MNISTLoader::split(dataset, val_size) : std::make_pair(dataset, MNISTDataset{});
             train(train_set.X, train_set.labels,
                 val_set.X, val_set.labels,
                 epochs, batch_size, dataset.num_classes,
-                shuffle, streamline
+                shuffle, streamline, verbose
             );
         }
 
@@ -157,8 +157,8 @@ class Network {
         double computeAccuracy(const Matrix& predictions, const Matrix& y_true) const;
         Matrix predict(const Matrix& X) { return forward(X); }
 
-        double evaluate(const Matrix& X, const std::vector<uint8_t>& labels);
-        double evaluate(const MNISTDataset& dataset) { return evaluate(dataset.X, dataset.labels); }
+        double evaluate(const Matrix& X, const std::vector<uint8_t>& labels,  size_t num_classes);
+        double evaluate(const MNISTDataset& dataset) { return evaluate(dataset.X, dataset.labels, dataset.num_classes); }
 
         double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
         double computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;

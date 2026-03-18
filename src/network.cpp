@@ -344,7 +344,7 @@ void Network::train(
     const Matrix& X, const std::vector<uint8_t>& labels,
     const Matrix& X_val, const std::vector<uint8_t>& labels_val,
     size_t epochs, size_t batch_size, size_t num_classes,
-    bool shuffle, bool streamline
+    bool shuffle, bool streamline, bool verbose
 ) {
     for (size_t epoch = 0; epoch < epochs; ++epoch) {
         double eta = learningRate * pow(decayRate, epoch);
@@ -420,15 +420,17 @@ void Network::train(
             Matrix val_predictions = forward(X_val);
             val_acc = computeAccuracy(val_predictions, labels_val, num_classes);
         }
-
-        if ((epoch + 1) % 1 == 0 || epoch + 1 == epochs - 1) {
-            std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
-            std::cout << "Total Samples Passed: " << total_samples << "/" << training_size << std::endl;
-            std::cout << "Training Accuracy: " << train_accuracy << std::endl;
-            std::cout << "Validation Accuracy: " << (val_acc >= 0.0 ? std::to_string(val_acc) : "N/A") << std::endl;
-            std::cout << "Learning Rate: " << eta << std::endl;
-            std::cout << "Loss: " << train_loss << std::endl;
-            std::cout << std::endl;
+        
+        if (verbose) {
+            if ((epoch + 1) % 10 == 0 || epoch + 1 == epochs - 1) {
+                std::cout << "Epoch [" << epoch + 1 << "/" << epochs << "]:" << std::endl;
+                std::cout << "Total Samples Passed: " << total_samples << "/" << training_size << std::endl;
+                std::cout << "Training Accuracy: " << train_accuracy << std::endl;
+                std::cout << "Validation Accuracy: " << (val_acc >= 0.0 ? std::to_string(val_acc) : "N/A") << std::endl;
+                std::cout << "Learning Rate: " << eta << std::endl;
+                std::cout << "Loss: " << train_loss << std::endl;
+                std::cout << std::endl;
+            }
         }
     }
 }
@@ -441,6 +443,11 @@ double Network::computeAccuracy(const Matrix& predictions, const std::vector<uin
 double Network::computeAccuracy(const Matrix& predictions, const Matrix& y_true) const {
     size_t batch_size = predictions.getCols();
     return static_cast<double>(computeCorrectCount(predictions, y_true)) / batch_size;
+}
+
+double Network::evaluate(const Matrix& X, const std::vector<uint8_t>& labels, size_t num_classes) {
+    Matrix predictions = forward(X);
+    return computeAccuracy(predictions, labels, num_classes);
 }
 
 double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) const {
