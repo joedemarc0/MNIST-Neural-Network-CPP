@@ -2,6 +2,7 @@
 #include <iostream>
 #include <algorithm>
 #include <random>
+#include <iomanip>
 
 
 // Empty/Default Network Constructor
@@ -21,17 +22,20 @@ Network::Network(
 Network::Network(
     size_t input_size,
     double learning_rate,
+    double decay_rate,
     Activations::ActivationType act_type,
     InitType init_type
 ) : isCompiled(false),
     networkInputSize(input_size),
     learningRate(learning_rate),
-    decayRate(0.99),
+    decayRate(decay_rate),
     networkActType(act_type),
     networkInitType(init_type)
 {
     if (learning_rate <= 0.0) {
         throw std::invalid_argument("Learning Rate must be Positive");
+    } else if (decay_rate <= 0.0) {
+        throw std::invalid_argument("Decay Rate must be Positive");
     } else if (input_size == 0) {
         throw std::invalid_argument("Network Input Size must be Nonzero");
     } else if (act_type == Activations::ActivationType::SOFTMAX) {
@@ -41,20 +45,32 @@ Network::Network(
 
 
 // Nested Layer Class Implementation
+// Layer Class "Private" Constructor
 Network::Layer::Layer(
     size_t input_size,
     size_t output_size,
     Activations::ActivationType act_type,
-    InitType init_type
+    InitType init_type,
+    bool skip_init
 ) : inputSize(input_size),
     outputSize(output_size),
     actType(act_type),
     initType(init_type)
 {
-    weights = Matrix(outputSize, inputSize);
-    biases = Matrix(outputSize, 1);
-    initialize();
+    if (!skip_init) {
+        weights = Matrix(outputSize, inputSize);
+        biases = Matrix(outputSize, 1);
+        initialize();
+    }
 }
+
+// Layer Class "Public" Constructor
+Network::Layer::Layer(
+    size_t input_size,
+    size_t output_size,
+    Activations::ActivationType act_type,
+    InitType init_type
+) : Layer(input_size, output_size, act_type, init_type, false) {}
 
 // Layer Class Private Functions
 void Network::Layer::initialize() {
@@ -486,13 +502,14 @@ void Network::saveModel(const std::string& filename) const {
 
     out << static_cast<int>(isCompiled) << std::endl;
     out << networkInputSize << std::endl;
-    out << learningRate << std::endl;
-    out << decayRate << std::endl;
+    out << std::setprecision(17) << learningRate << std::endl;
+    out << std::setprecision(17) << decayRate << std::endl;
 
     out << static_cast<int>(networkActType) << std::endl;
     out << static_cast<int>(networkInitType) << std::endl;
 
     out << layers.size() << std::endl;
+    out << std::setprecision(17);
     for (const auto& layer : layers) {
         out << layer.getInputSize() << " "
             << layer.getOutputSize() << " "
@@ -506,6 +523,7 @@ void Network::saveModel(const std::string& filename) const {
                 out << W.at(row, col) << " ";
             }
         }
+        out << "\n";
 
         const Matrix& b = layer.getBiases();
         out << b.getRows() << " " << b.getCols() << std::endl;
@@ -514,55 +532,68 @@ void Network::saveModel(const std::string& filename) const {
                 out << b.at(row, col) << " ";
             }
         }
+        out << "\n";
     }
 }
 
-
-
-
-
-
-
-// Need to finish
-void Network::loadModel(const std::string& filename) {
+Network Network::loadModel(const std::string& filename) {
     std::ifstream in(filename);
-    if (!in.is_open()) throw std::runtime_error("Could not open file for loading model");
+    if (!in.is_open()) throw std::runtime_error("Cannot open file for loading model");
+
+    int compiled_flag;
+    size_t input_size;
+    double learning_rate, decay_rate;
+    int act, init;
+
+    in >> compiled_flag >> input_size >> learning_rate >> decay_rate >> act >> init;
+    Network net(
+        input_size,
+        learning_rate,
+        decay_rate,
+        static_cast<Activations::ActivationType>(act),
+        static_cast<InitType>(init)
+    );
 
     size_t num_layers;
     in >> num_layers;
+    for (size_t i = 0; i < num_layers; ++i) {
+        size_t layer_in, layer_out;
+        int layer_act, layer_init;
+        in >> layer_in >> layer_out >> layer_act >> layer_init;
 
-    layers.clear();
-    for (size_t l = 0; l < num_layers; ++l) {
-        size_t in_size, out_size;
-        int act, init;
-        in >> in_size >> out_size >> act >> init;
+        Layer layer(
+            layer_in,
+            layer_out,
+            static_cast<Activations::ActivationType>(layer_act),
+            static_cast<InitType>(layer_init),
+            true
+        );
 
-        Layer layer(in_size, out_size,
-                    static_cast<Activations::ActivationType>(act),
-                    static_cast<InitType>(init));
-        
         size_t w_rows, w_cols;
         in >> w_rows >> w_cols;
-        Matrix W(w_rows, w_cols);
-        for (size_t i = 0; i < w_rows; ++i) {
-            for (size_t j = 0; j < w_cols; ++j) {
-                in >> W(i, j);
+        Matrix Weights(w_rows, w_cols);
+        for (size_t row = 0; row < w_rows; ++row) {
+            for (size_t col = 0; col < w_cols; ++col) {
+                in >> Weights.at(row, col);
             }
         }
-        layer.setWeights(W);
+        layer.setWeights(Weights);
 
         size_t b_rows, b_cols;
         in >> b_rows >> b_cols;
-        Matrix b(b_rows, b_cols);
-        for (size_t i = 0; i < b_rows; ++i) {
-            for (size_t j = 0; j < b_cols; ++j) {
-                in >> b(i, j);
+        Matrix Biases(b_rows, b_cols);
+        for (size_t row = 0; row < b_rows; ++row) {
+            for (size_t col = 0; col < b_cols; ++col) {
+                in >> Biases.at(row, col);
             }
         }
-        layer.setBiases(b);
+        layer.setBiases(Biases);
 
-        layers.push_back(layer);
+        net.layers.push_back(std::move(layer));
     }
 
-    in.close();
+    if (!in.good()) throw std::runtime_error("Error reading model file - may be corrupted/incomplete");
+    net.isCompiled = (compiled_flag == 1);
+
+    return net;
 }

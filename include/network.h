@@ -51,6 +51,14 @@ class Network {
                     size_t input_size,
                     size_t output_size,
                     Activations::ActivationType act_type,
+                    InitType init_type,
+                    bool skip_init
+                );
+                
+                Layer(
+                    size_t input_size,
+                    size_t output_size,
+                    Activations::ActivationType act_type,
                     InitType init_type
                 );
 
@@ -100,6 +108,7 @@ class Network {
         Network(
             size_t input_size,
             double learning_rate,
+            double decay_rate,
             Activations::ActivationType act_type,
             InitType init_type
         );
@@ -165,7 +174,7 @@ class Network {
         double computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
 
         void saveModel(const std::string& filename) const;
-        void loadModel(const std::string& filename);
+        static Network loadModel(const std::string& filename);
 };
 
 
