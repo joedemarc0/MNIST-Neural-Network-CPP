@@ -1,28 +1,35 @@
+#include "data-loader.h"
+#include "network.h"
+#include "visualizer.h"
 #include <iostream>
 #include <random>
 #include <opencv2/opencv.hpp>
-#include "data-loader.h"
+#include <chrono>
+
+using Clock = std::chrono::high_resolution_clock;
+using Ms = std::chrono::duration<double, std::milli>;
 
 
 int main() {
     try {
-        std::cout << "=== MNISTLoader Test ===" << std::endl;
-
-        std::cout << "Loading Training Data" << std::endl;
         MNISTDataset train_data = MNISTLoader::loadTrainingData();
-        MNISTLoader::printDatasetInfo(train_data);
+        Network net = Network::loadModel("models/mnist_model1.txt");
+        
+        if (!net.checkCompiled()) {
+            std::cout << "Network Compile Error" << std::endl;
+            return 1;
+        }
 
-        std::cout << "Test Completed Successfully..." << std::endl;
+        Visualizer::viewGrid(train_data, net);
+
+        // auto start = Clock::now();
+        // net.train(train_data, 10000, 10, 64, false, true);
+        // auto ms = Ms(Clock::now() - start).count();
     
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
-        std::cerr << "\nPossible Issues:" << std::endl;
-        std::cerr << "1. Check that MNIST files are in ./data/ directory" << std::endl;
-        std::cerr << "2. Verify filenames match exactly:" << std::endl;
-        std::cerr << "   - train-images-idx3-ubyte" << std::endl;
-        std::cerr << "   - train-labels-idx1-ubyte" << std::endl;
-        std::cerr << "   - t10k-images-idx3-ubyte" << std::endl;
-        std::cerr << "   - t10k-labels-idx1-ubyte" << std::endl;
         return 1;
     }
+
+    return 0;
 }
