@@ -8,6 +8,7 @@
 // Empty/Default Network Constructor
 Network::Network(
 ) : networkInputSize(784),
+    numClasses(10),
     learningRate(0.1),
     decayRate(0.99),
     networkActType(Activations::ActivationType::RELU),
@@ -21,12 +22,14 @@ Network::Network(
 // Non-empty Constructor
 Network::Network(
     size_t input_size,
+    size_t num_classes,
     double learning_rate,
     double decay_rate,
     Activations::ActivationType act_type,
     InitType init_type
 ) : isCompiled(false),
     networkInputSize(input_size),
+    numClasses(num_classes),
     learningRate(learning_rate),
     decayRate(decay_rate),
     networkActType(act_type),
@@ -99,10 +102,9 @@ Matrix Network::Layer::forward(const Matrix& X) {
 
     input = X;
     Matrix Z = (weights * X) + biases;
-    Matrix A = Activations::activate(Z, actType);
     preActivation = Z;
-    output = A;
-    return output;
+    Matrix A = Activations::activate(Z, actType);
+    return A;
 }
 
 Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
@@ -137,7 +139,7 @@ void Network::addOutputLayer() {
     }
 
     size_t input_dim = layers.back().getOutputSize();
-    size_t output_dim = 10;
+    size_t output_dim = numClasses;
     layers.emplace_back(input_dim, output_dim, Activations::ActivationType::SOFTMAX, InitType::XAVIER);
 }
 
@@ -154,10 +156,7 @@ Matrix Network::forward(const Matrix& X) {
     }
 
     Matrix A = X;
-    for (auto& layer : layers) {
-        A = layer.forward(A);
-    }
-
+    for (auto& layer : layers) A = layer.forward(A);
     lastOutput = A;
     return lastOutput;
 }
@@ -173,22 +172,16 @@ void Network::backward(const Matrix& y_true, double learning_rate) {
     }
 }
 
-Matrix Network::toOneHot(const MNISTDataset& dataset) const {
-    Matrix result(dataset.num_classes, dataset.num_samples);
-    for (size_t col = 0; col < dataset.num_samples; ++col) result(dataset.labels[col], col) = 1.0;
-    return result;
-}
-
-Matrix Network::toOneHot(const std::vector<uint8_t>& labels, size_t num_classes) const {
-    Matrix result(num_classes, labels.size());
+Matrix Network::toOneHot(const std::vector<uint8_t>& labels) const {
+    Matrix result(numClasses, labels.size());
     for (size_t col = 0; col < labels.size(); ++col) result(labels[col], col) = 1.0;
     return result;
 }
 
-size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
+size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels) const {
     if (predictions.getCols() != labels.size()) {
         throw std::invalid_argument("Number of predictions not equal to number of labels");
-    } else if (predictions.getRows() != num_classes) {
+    } else if (predictions.getRows() != numClasses) {
         throw std::invalid_argument("Predictions matrix does not match number of classes");
     }
 
@@ -199,7 +192,7 @@ size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector
         double max_val = predictions(0, sample);
         size_t max_index = 0;
 
-        for (size_t row = 1; row < num_classes; ++row) {
+        for (size_t row = 1; row < numClasses; ++row) {
             if (predictions(row, sample) > max_val) {
                 max_val = predictions(row, sample);
                 max_index = row;
@@ -214,68 +207,25 @@ size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector
     return count;
 }
 
-size_t Network::computeCorrectCount(const Matrix& predictions, const Matrix& y_true) const {
-    if (!Matrix::matchDim(predictions, y_true)) {
-        throw std::invalid_argument("Predictions matrix and labels matrix must have matching dimensions");
-    }
-
-    size_t batch_size = predictions.getCols();
-    const double epsilon = 1e-6;
-    size_t count = 0;
-
-    for (size_t sample = 0; sample < batch_size; ++sample) {
-        double max_val = predictions(0, sample);
-        size_t max_index = 0;
-
-        for (size_t row = 1; row < predictions.getRows(); ++row) {
-            if (predictions(row, sample) > max_val) {
-                max_val = predictions(row, sample);
-                max_index = row;
-            }
-        }
-
-        if (std::abs(y_true(max_index, sample) - 1.0) < epsilon) {
-            count += 1;
-        }
-    }
-
-    return count;
-}
-
-Matrix Network::sliceCols(const Matrix& X, const std::vector<size_t>& indices) const {
-    size_t batch_size = indices.size();
-    Matrix result(X.getRows(), batch_size);
-
-    for (size_t i = 0; i < batch_size; ++i) {
-        result.setCol(i, X.getCol(indices[i]));
-    }
-
-    return result;
-}
-
-std::vector<uint8_t> Network::sliceCols(const std::vector<uint8_t>& y, const std::vector<size_t>& indices) const {
+std::vector<uint8_t> Network::sliceCols(const std::vector<uint8_t>& labels, const std::vector<size_t>& indices) const {
     size_t batch_size = indices.size();
     std::vector<uint8_t> result(batch_size);
 
-    for (size_t i = 0; i < batch_size; ++i) {
-        result[i] = y[indices[i]];
-    }
-
+    for (size_t i = 0; i < batch_size; ++i) result[i] = labels[indices[i]];
     return result;
 }
 
-std::vector<Sample> Network::createBatches(const Matrix& X, const std::vector<uint8_t> labels, size_t batch_size, bool shuffle) const {
+std::vector<MNISTDataset> Network::createBatches(const Matrix& X, const std::vector<uint8_t>& labels, size_t batch_size, bool shuffle) const {
     size_t training_size = X.getCols();
     std::vector<size_t> indices(training_size);
     std::iota(indices.begin(), indices.end(), 0);
 
     if (shuffle) {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(indices.begin(), indices.end(), g);
+        std::mt19937 rng(std::random_device{}());
+        std::shuffle(indices.begin(), indices.end(), rng);
     }
 
-    std::vector<Sample> batches;
+    std::vector<MNISTDataset> batches;
     for (size_t start = 0; start < training_size; start += batch_size) {
         size_t end = std::min(start + batch_size, training_size);
 
@@ -293,17 +243,12 @@ std::vector<Sample> Network::createBatches(const Matrix& X, const std::vector<ui
     return batches;
 }
 
-std::vector<Sample> Network::createBatches(const MNISTDataset& dataset, size_t batch_size, bool shuffle) const {
-    return createBatches(dataset.X, dataset.labels, batch_size, shuffle);
-}
-
-
 // Network Class Public Functions
 void Network::addLayer(size_t neurons) {
     if (neurons == 0) {
         throw std::invalid_argument("Number of neurons must be nonzero");
     } else if (isCompiled) {
-        throw std::runtime_error("Cannot add layers once network is Compiled");
+        throw std::runtime_error("Cannot add layers once network is compiled");
     }
 
     size_t input_dim = layers.empty() ? networkInputSize : layers.back().getOutputSize();
@@ -330,26 +275,28 @@ void Network::compile() {
         throw std::runtime_error("Network cannot be compiled with no hidden layers");
     }
 
-    size_t expectedInputSize = networkInputSize;
-    for (size_t i = 0; i < layers.size(); ++i) {
-        auto act = layers[i].getActivationType();
+    size_t layer_num = 0;
+    size_t expected_input_size = networkInputSize;
+    for (auto& layer : layers) {
+        auto act = layer.getActivationType();
 
         if (act == Activations::ActivationType::SOFTMAX) {
             throw std::runtime_error(
-                "Invalid Activation Function Type at Layer " + std::to_string(i) +
-                ", Activation Function: " + std::to_string(static_cast<int>(layers[i].getActivationType()))
+                "Invalid Activation Function Type at Layer " + std::to_string(layer_num) +
+                ", Activation Function: " + to_string(layer.getActivationType())
             );
         }
 
-        if (layers[i].getInputSize() != expectedInputSize) {
+        if (layer.getInputSize() != expected_input_size) {
             throw std::runtime_error(
-                "Dimension Mismatch at Layer " + std::to_string(i) +
-                ", Expected: " + std::to_string(expectedInputSize) +
-                ", Got: " + std::to_string(layers[i].getInputSize()) + "."
+                "Dimension Mismatch at Layer " + std::to_string(layer_num) +
+                ", Expected: " + std::to_string(expected_input_size) +
+                ", Got: " + std::to_string(layer.getInputSize()) + "."
             );
         }
 
-        expectedInputSize = layers[i].getOutputSize();
+        expected_input_size = layer.getOutputSize();
+        layer_num++;
     }
 
     addOutputLayer();
@@ -359,7 +306,7 @@ void Network::compile() {
 void Network::train(
     const Matrix& X, const std::vector<uint8_t>& labels,
     const Matrix& X_val, const std::vector<uint8_t>& labels_val,
-    size_t epochs, size_t batch_size, size_t num_classes,
+    size_t epochs, size_t batch_size,
     bool shuffle, bool streamline, bool verbose
 ) {
     for (size_t epoch = 0; epoch < epochs; ++epoch) {
@@ -375,9 +322,8 @@ void Network::train(
             std::iota(indices.begin(), indices.end(), 0);
 
             if (shuffle) {
-                std::random_device rd;
-                std::mt19937 g(rd());
-                std::shuffle(indices.begin(), indices.end(), g);
+                std::mt19937 rng(std::random_device{}());
+                std::shuffle(indices.begin(), indices.end(), rng);
             }
 
             for (size_t start = 0; start < training_size; start += batch_size) {
@@ -390,15 +336,16 @@ void Network::train(
 
                 Matrix X_batch = X.sliceCols(sliced_indices);
                 std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
-                Matrix y_batch = toOneHot(batch_labels, num_classes);
+                Matrix y_batch = toOneHot(batch_labels);
 
                 Matrix predictions = forward(X_batch);
                 backward(y_batch, eta);
 
                 epoch_loss += computeLoss(predictions, y_batch) * X_batch.getCols();
-                epoch_corr += computeCorrectCount(predictions, batch_labels, num_classes);
+                epoch_corr += computeCorrectCount(predictions, batch_labels);
                 total_samples += X_batch.getCols();
             }
+
         } else {
             /**
              * Realistically this method is going to be much much slower because you are allocating memory for previous
@@ -407,23 +354,14 @@ void Network::train(
              * However I am incredibly impressed with myself for implementing this because this was a tough part of this project
              * Therefore I am not going to delete it. Bite me.
              */
-            std::vector<Sample> batches = createBatches(X, labels, batch_size, shuffle);
+            std::vector<MNISTDataset> batches = createBatches(X, labels, batch_size, shuffle);
             for (auto& batch : batches) {
                 Matrix predictions = forward(batch.X);
-                std::visit([&](auto& labels) {
-                    Matrix y_true;
-                    if constexpr (std::is_same_v<std::decay_t<decltype(labels)>, std::vector<uint8_t>>) {
-                        y_true = toOneHot(labels, num_classes);
-                    } else {
-                        y_true = labels;
-                    }
+                Matrix y_batch = toOneHot(batch.labels);
 
-                    backward(y_true, eta);
-                    epoch_loss += computeLoss(predictions, y_true) * batch.X.getCols();
-                    epoch_corr += computeCorrectCount(predictions, y_true);
-
-                }, batch.y);
-
+                backward(y_batch, eta);
+                epoch_loss += computeLoss(predictions, y_batch) * batch.X.getCols();
+                epoch_corr += computeCorrectCount(predictions, batch.labels);
                 total_samples += batch.X.getCols();
             }
         }
@@ -434,7 +372,7 @@ void Network::train(
         double val_acc = -1.0;
         if (X_val.getCols() > 0) {
             Matrix val_predictions = forward(X_val);
-            val_acc = computeAccuracy(val_predictions, labels_val, num_classes);
+            val_acc = computeAccuracy(val_predictions, labels_val);
         }
         
         if (verbose) {
@@ -451,19 +389,14 @@ void Network::train(
     }
 }
 
-double Network::computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
+double Network::computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels) const {
     size_t batch_size = predictions.getCols();
-    return static_cast<double>(computeCorrectCount(predictions, labels, num_classes)) / batch_size;
+    return static_cast<double>(computeCorrectCount(predictions, labels)) / batch_size;
 }
 
-double Network::computeAccuracy(const Matrix& predictions, const Matrix& y_true) const {
-    size_t batch_size = predictions.getCols();
-    return static_cast<double>(computeCorrectCount(predictions, y_true)) / batch_size;
-}
-
-double Network::evaluate(const Matrix& X, const std::vector<uint8_t>& labels, size_t num_classes) {
+double Network::evaluate(const Matrix& X, const std::vector<uint8_t>& labels) {
     Matrix predictions = forward(X);
-    return computeAccuracy(predictions, labels, num_classes);
+    return computeAccuracy(predictions, labels);
 }
 
 double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) const {
@@ -489,11 +422,6 @@ double Network::computeLoss(const Matrix& predictions, const Matrix& y_true) con
     return loss / batch_size;
 }
 
-double Network::computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const {
-    Matrix y_true = toOneHot(labels, num_classes);
-    return computeLoss(predictions, y_true);
-}
-
 void Network::saveModel(const std::string& filename) const {
     std::ofstream out(filename);
     if (!out.is_open()) {
@@ -502,6 +430,7 @@ void Network::saveModel(const std::string& filename) const {
 
     out << static_cast<int>(isCompiled) << std::endl;
     out << networkInputSize << std::endl;
+    out << numClasses << std::endl;
     out << std::setprecision(17) << learningRate << std::endl;
     out << std::setprecision(17) << decayRate << std::endl;
 
@@ -541,13 +470,14 @@ Network Network::loadModel(const std::string& filename) {
     if (!in.is_open()) throw std::runtime_error("Cannot open file for loading model");
 
     int compiled_flag;
-    size_t input_size;
+    size_t input_size, num_classes;
     double learning_rate, decay_rate;
     int act, init;
 
-    in >> compiled_flag >> input_size >> learning_rate >> decay_rate >> act >> init;
+    in >> compiled_flag >> input_size >> num_classes >> learning_rate >> decay_rate >> act >> init;
     Network net(
         input_size,
+        num_classes,
         learning_rate,
         decay_rate,
         static_cast<Activations::ActivationType>(act),

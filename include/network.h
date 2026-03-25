@@ -31,21 +31,20 @@ class Network {
     private:
         class Layer {
             private:
-                size_t inputSize;
-                size_t outputSize;
+                const size_t inputSize;
+                const size_t outputSize;
 
                 Matrix weights;
                 Matrix biases;
                 Matrix input;
-                Matrix output;
                 Matrix preActivation;
 
-                Activations::ActivationType actType;
-                InitType initType;
+                const Activations::ActivationType actType;
+                const InitType initType;
 
                 void initialize();
                 void updateParams(const Matrix& dWeights, const Matrix& dbiases, double learning_rate);
-            
+
             public:
                 Layer(
                     size_t input_size,
@@ -54,7 +53,7 @@ class Network {
                     InitType init_type,
                     bool skip_init
                 );
-                
+
                 Layer(
                     size_t input_size,
                     size_t output_size,
@@ -79,34 +78,29 @@ class Network {
 
         bool isCompiled = false;
         std::vector<Layer> layers;
-        size_t networkInputSize;
+        const size_t networkInputSize;
+        const size_t numClasses;
         const double learningRate;
         const double decayRate;
         Matrix lastOutput;
-
-        Activations::ActivationType networkActType;
-        InitType networkInitType;
+        
+        const Activations::ActivationType networkActType;
+        const InitType networkInitType;
 
         void addOutputLayer();
 
         Matrix forward(const Matrix& X);
         void backward(const Matrix& y_true, double learning_rate);
-        Matrix toOneHot(const MNISTDataset& dataset) const;
-        Matrix toOneHot(const std::vector<uint8_t>& labels, size_t num_classes) const;
-
-        size_t computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
-        size_t computeCorrectCount(const Matrix& predictions, const Matrix& y_true) const;
-
-        Matrix sliceCols(const Matrix& X, const std::vector<size_t>& indices) const;
-        std::vector<uint8_t> sliceCols(const std::vector<uint8_t>& y, const std::vector<size_t>& indices) const;
-
-        std::vector<Sample> createBatches(const Matrix& X, const std::vector<uint8_t> labels, size_t batch_size, bool shuffle) const;
-        std::vector<Sample> createBatches(const MNISTDataset& dataset, size_t batch_size, bool shuffle) const;
+        Matrix toOneHot(const std::vector<uint8_t>& labels) const;
+        size_t computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels) const;
+        std::vector<uint8_t> sliceCols(const std::vector<uint8_t>& labels, const std::vector<size_t>& indices) const;
+        std::vector<MNISTDataset> createBatches(const Matrix& X, const std::vector<uint8_t>& labels, size_t batch_size, bool shuffle) const;
 
     public:
         Network();
         Network(
             size_t input_size,
+            size_t num_classes,
             double learning_rate,
             double decay_rate,
             Activations::ActivationType act_type,
@@ -115,6 +109,8 @@ class Network {
 
         // Getters
         std::vector<Layer> getLayers() const { return layers; }
+        size_t getInputSize() const { return networkInputSize; }
+        size_t getNumClasses() const { return numClasses; }
         double getLearningRate() const { return learningRate; }
         double getDecayRate() const { return decayRate; }
         Activations::ActivationType getNetworkActType() const { return networkActType; }
@@ -124,8 +120,8 @@ class Network {
         void addLayer(size_t neurons);
         void addLayer(
             size_t neurons,
-            Activations::ActivationType actType,
-            InitType initType    
+            Activations::ActivationType act_type,
+            InitType init_type
         );
 
         void compile();
@@ -133,7 +129,7 @@ class Network {
         void train(
             const Matrix& X, const std::vector<uint8_t>& labels,
             const Matrix& X_val, const std::vector<uint8_t>& labels_val,
-            size_t epochs, size_t batch_size, size_t num_classes,
+            size_t epochs, size_t batch_size,
             bool shuffle, bool streamline, bool verbose=true
         );
 
@@ -143,35 +139,33 @@ class Network {
             size_t epochs, size_t batch_size,
             bool shuffle, bool streamline, bool verbose=true
         ) {
-            train(dataset.X, dataset.labels,
+            train(
+                dataset.X, dataset.labels,
                 val_dataset.X, val_dataset.labels,
-                epochs, batch_size, dataset.num_classes,
+                epochs, batch_size,
                 shuffle, streamline, verbose
             );
         }
-        
+
         void train(
             const MNISTDataset& dataset,
             size_t val_size, size_t epochs, size_t batch_size,
             bool shuffle, bool streamline, bool verbose=true
         ) {
             auto [train_set, val_set] = val_size > 0 ? MNISTLoader::split(dataset, val_size) : std::make_pair(dataset, MNISTDataset{});
-            train(train_set.X, train_set.labels,
+            train(
+                train_set.X, train_set.labels,
                 val_set.X, val_set.labels,
-                epochs, batch_size, dataset.num_classes,
+                epochs, batch_size,
                 shuffle, streamline, verbose
             );
         }
 
-        double computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
-        double computeAccuracy(const Matrix& predictions, const Matrix& y_true) const;
+        double computeAccuracy(const Matrix& predictions, const std::vector<uint8_t>& labels) const;
+        double evaluate(const Matrix& X, const std::vector<uint8_t>& labels);
+        double evaluate(const MNISTDataset& dataset) { return evaluate(dataset.X, dataset.labels); }
         Matrix predict(const Matrix& X) { return forward(X); }
-
-        double evaluate(const Matrix& X, const std::vector<uint8_t>& labels,  size_t num_classes);
-        double evaluate(const MNISTDataset& dataset) { return evaluate(dataset.X, dataset.labels, dataset.num_classes); }
-
         double computeLoss(const Matrix& predictions, const Matrix& y_true) const;
-        double computeLoss(const Matrix& predictions, const std::vector<uint8_t>& labels, size_t num_classes) const;
 
         void saveModel(const std::string& filename) const;
         static Network loadModel(const std::string& filename);
