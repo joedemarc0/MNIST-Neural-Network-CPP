@@ -32,11 +32,7 @@ MNISTDataset MNISTLoader::loadDataset(
 
     MNISTDataset dataset {
         toMatrix(raw_images, normalize),
-        raw_labels.bytes,
-        raw_images.num_images,
-        raw_images.image_width,
-        raw_images.image_height,
-        raw_labels.num_classes
+        raw_labels.bytes
     };
 
     return dataset;
@@ -77,60 +73,21 @@ std::pair<MNISTDataset, MNISTDataset> MNISTLoader::split(
         std::shuffle(index.begin(), index.end(), g);
     }
 
-    std::vector<size_t> val_index(index.begin(), index.begin() + val_size);
     std::vector<size_t> train_index(index.begin() + val_size, index.end());
-
-    size_t train_size = num_samples - val_size;
+    std::vector<size_t> val_index(index.begin(), index.begin() + val_size);
 
     MNISTDataset train_data {
         dataset.X.sliceCols(train_index),
-        sliceCols(dataset.labels, train_index),
-        train_size,
-        dataset.image_width,
-        dataset.image_height,
-        dataset.num_classes
+        sliceLabels(dataset.labels, train_index),
     };
 
     MNISTDataset val_data {
         dataset.X.sliceCols(val_index),
-        sliceCols(dataset.labels, val_index),
-        val_size,
-        dataset.image_width,
-        dataset.image_height,
-        dataset.num_classes
+        sliceLabels(dataset.labels, val_index),
     };
-
-    std::cout << "Splitting dataset into training and validation sets" << std::endl;
-    std::cout << "  Training set size: " << train_size << std::endl;
-    std::cout << "  Validation set size: " << val_size << std::endl;
 
     return { std::move(train_data), std::move(val_data) };
 }
-
-std::pair<MNISTDataset, MNISTDataset> MNISTLoader::split(
-    const MNISTDataset& dataset,
-    double val_percent,
-    bool shuffle
-) {
-    if (val_percent <= 0.0 || val_percent >= 1.0) {
-        throw std::invalid_argument("Invalid validation set percentage selection");
-    }
-
-    size_t val_size = std::max<size_t>(1, static_cast<size_t>(std::round(val_percent * dataset.num_samples)));
-    return split(dataset, val_size, shuffle);
-}
-
-void MNISTLoader::printDatasetInfo(const MNISTDataset& dataset) {
-    std::cout << "\n=== MNIST Dataset Information ===" << std::endl;
-    std::cout << "Number of samples: " << dataset.num_samples << std::endl;
-    std::cout << "Image dimensions: " << dataset.image_height << "x" << dataset.image_width << std::endl;
-    std::cout << "Number of classes: " << dataset.num_classes << std::endl;
-    std::cout << "Mean pixel value: " << std::endl;
-    std::cout << "STD pixel value: " << std::endl;
-}
-
-void MNISTLoader::saveDataset(const MNISTDataset& dataset, const std::string& filename) {}
-
 
 // MNISTLoader Private Functions
 uint32_t MNISTLoader::swapEndian(uint32_t val) {
@@ -204,13 +161,6 @@ MNISTLoader::RawLabels MNISTLoader::readLabels(const std::string& path) {
     raw.bytes.resize(num_labels);
     file.read(reinterpret_cast<char*>(raw.bytes.data()), static_cast<std::streamsize>(num_labels));
 
-    uint8_t max_label = 0;
-    for (uint8_t label : raw.bytes) {
-        if (label > max_label) max_label = label;
-    }
-
-    raw.num_classes = static_cast<uint32_t>(max_label) + 1;
-
     if (!file) {
         throw std::runtime_error(
             "MNISTLoader: truncated LABEL file (read " +
@@ -238,16 +188,10 @@ Matrix MNISTLoader::toMatrix(const RawImages& raw, bool normalize) {
     return X;
 }
 
-std::vector<uint8_t> MNISTLoader::sliceCols(
-    const std::vector<uint8_t>& labels,
-    const std::vector<size_t>& sliced_indices
-) {
+std::vector<uint8_t> MNISTLoader::sliceLabels(const std::vector<uint8_t>& labels, const std::vector<size_t>& sliced_indices) {
     size_t batch_size = sliced_indices.size();
     std::vector<uint8_t> result(batch_size);
 
-    for (size_t i = 0; i < batch_size; ++i) {
-        result[i] = labels[sliced_indices[i]];
-    }
-
+    for (size_t i = 0; i < batch_size; ++i) result[i] = labels[sliced_indices[i]];
     return result;
 }

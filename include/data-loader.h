@@ -24,44 +24,28 @@
 struct MNISTDataset {
     Matrix X;
     std::vector<uint8_t> labels;
-
     size_t num_samples;
-    size_t image_width;
-    size_t image_height;
-    size_t num_classes;
 
     MNISTDataset(
     ) : X(),
         labels(),
-        num_samples(0),
-        image_width(0),
-        image_height(0),
-        num_classes(0)
+        num_samples(0)
     {}
 
     MNISTDataset(
         Matrix X_,
-        std::vector<uint8_t> labels_,
-        size_t samples,
-        size_t width,
-        size_t height,
-        size_t classes
+        std::vector<uint8_t> labels_
     ) : X(std::move(X_)),
-        labels(std::move(labels_)),
-        num_samples(samples),
-        image_width(width),
-        image_height(height),
-        num_classes(classes)
-    {}
+        labels(std::move(labels_))
+    {
+        if (X_.getCols() != labels_.size()) {
+            throw std::invalid_argument("Number of samples does not match");
+        }
+
+        num_samples = labels_.size();
+    }
 };
 
-struct Sample {
-    Matrix X;
-    using LabelType = std::variant<Matrix, std::vector<uint8_t>>; LabelType y;
-
-    Sample(Matrix X_, Matrix y_) : X(std::move(X_)), y(std::move(y_)) {}
-    Sample (Matrix X_, std::vector<uint8_t> labels) : X(std::move(X_)), y(std::move(labels)) {}
-};
 
 class MNISTLoader {
     public:
@@ -80,14 +64,10 @@ class MNISTLoader {
             bool shuffle = true
         );
 
-        static std::pair<MNISTDataset, MNISTDataset> split(
-            const MNISTDataset& dataset,
-            double val_fraction,
-            bool shuffle = true
+        static std::vector<uint8_t> sliceLabels(
+            const std::vector<uint8_t>& labels,
+            const std::vector<size_t>& sliced_indices
         );
-
-        static void printDatasetInfo(const MNISTDataset& dataset);
-        static void saveDataset(const MNISTDataset& dataset, const std::string& filename);
     
     private:
         struct RawImages {
@@ -100,17 +80,12 @@ class MNISTLoader {
         struct RawLabels {
             std::vector<uint8_t> bytes;
             uint32_t num_labels;
-            uint32_t num_classes;
         };
-        
+
+        static uint32_t swapEndian(uint32_t val);
         static RawImages readImages(const std::string& path);
         static RawLabels readLabels(const std::string& path);
-        static uint32_t swapEndian(uint32_t val);
         static Matrix toMatrix(const RawImages& raw, bool normalize);
-        static std::vector<uint8_t> sliceCols(
-            const std::vector<uint8_t>& labels,
-            const std::vector<size_t>& sliced_indices
-        );
 };
 
 #endif // DATA_LOADER_H
