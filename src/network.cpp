@@ -61,8 +61,8 @@ Network::Layer::Layer(
     initType(init_type)
 {
     if (!skip_init) {
-        weights = Matrix(outputSize, inputSize);
-        biases = Matrix(outputSize, 1);
+        weights = Matrix(output_size, input_size);
+        biases = Matrix(output_size, 1);
         initialize();
     }
 }
@@ -207,14 +207,6 @@ size_t Network::computeCorrectCount(const Matrix& predictions, const std::vector
     return count;
 }
 
-std::vector<uint8_t> Network::sliceCols(const std::vector<uint8_t>& labels, const std::vector<size_t>& indices) const {
-    size_t batch_size = indices.size();
-    std::vector<uint8_t> result(batch_size);
-
-    for (size_t i = 0; i < batch_size; ++i) result[i] = labels[indices[i]];
-    return result;
-}
-
 std::vector<MNISTDataset> Network::createBatches(const Matrix& X, const std::vector<uint8_t>& labels, size_t batch_size, bool shuffle) const {
     size_t training_size = X.getCols();
     std::vector<size_t> indices(training_size);
@@ -235,7 +227,7 @@ std::vector<MNISTDataset> Network::createBatches(const Matrix& X, const std::vec
         );
 
         Matrix X_batch = X.sliceCols(sliced_indices);
-        std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
+        std::vector<uint8_t> batch_labels = MNISTLoader::sliceLabels(labels, sliced_indices);
 
         batches.emplace_back(X_batch, batch_labels);
     }
@@ -335,7 +327,7 @@ void Network::train(
                 );
 
                 Matrix X_batch = X.sliceCols(sliced_indices);
-                std::vector<uint8_t> batch_labels = sliceCols(labels, sliced_indices);
+                std::vector<uint8_t> batch_labels = MNISTLoader::sliceLabels(labels, sliced_indices);
                 Matrix y_batch = toOneHot(batch_labels);
 
                 Matrix predictions = forward(X_batch);

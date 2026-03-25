@@ -93,7 +93,6 @@ class Network {
         void backward(const Matrix& y_true, double learning_rate);
         Matrix toOneHot(const std::vector<uint8_t>& labels) const;
         size_t computeCorrectCount(const Matrix& predictions, const std::vector<uint8_t>& labels) const;
-        std::vector<uint8_t> sliceCols(const std::vector<uint8_t>& labels, const std::vector<size_t>& indices) const;
         std::vector<MNISTDataset> createBatches(const Matrix& X, const std::vector<uint8_t>& labels, size_t batch_size, bool shuffle) const;
 
     public:
