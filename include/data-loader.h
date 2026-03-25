@@ -36,13 +36,12 @@ struct MNISTDataset {
         Matrix X_,
         std::vector<uint8_t> labels_
     ) : X(std::move(X_)),
-        labels(std::move(labels_))
+        labels(std::move(labels_)),
+        num_samples(labels.size())
     {
         if (X_.getCols() != labels_.size()) {
             throw std::invalid_argument("Number of samples does not match");
         }
-
-        num_samples = labels_.size();
     }
 };
 
