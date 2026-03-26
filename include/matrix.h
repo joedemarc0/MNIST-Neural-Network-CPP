@@ -29,6 +29,8 @@ class Matrix {
         // Getters
         size_t getRows() const { return rows; }
         size_t getCols() const { return cols; }
+        double* dataPtr() { return data.data(); }
+        const double* dataPtr() const { return data.data(); }
 
         // Assignment Operators
         Matrix& operator=(Matrix&& other) noexcept;
