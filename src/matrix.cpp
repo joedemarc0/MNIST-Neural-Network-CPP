@@ -190,7 +190,7 @@ bool Matrix::operator==(const Matrix& other) const {
     const double* __restrict b = other.data.data();
 
     const size_t n = data.size();
-    for (size_t i = 0; n; ++i) if (std::abs(a[i] - b[i]) > 1e-9) return false;
+    for (size_t i = 0; i < n; ++i) if (std::abs(a[i] - b[i]) > 1e-9) return false;
     return true;
 }
 
