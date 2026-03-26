@@ -64,9 +64,9 @@ class Network {
                 Matrix forward(const Matrix& X);
                 Matrix backward(const Matrix& dA, size_t batch_size, double learning_rate);
 
-                Matrix getWeights() const { return weights; }
-                Matrix getBiases() const { return biases; }
-                Matrix getZ() const { return preActivation; }
+                const Matrix& getWeights() const { return weights; }
+                const Matrix& getBiases() const { return biases; }
+                const Matrix& getZ() const { return preActivation; }
                 Activations::ActivationType getActivationType() const { return actType; }
                 InitType getInitType() const { return initType; }
                 size_t getInputSize() const { return inputSize; }
@@ -107,7 +107,7 @@ class Network {
         );
 
         // Getters
-        std::vector<Layer> getLayers() const { return layers; }
+        const std::vector<Layer>& getLayers() const { return layers; }
         size_t getInputSize() const { return networkInputSize; }
         size_t getNumClasses() const { return numClasses; }
         double getLearningRate() const { return learningRate; }
