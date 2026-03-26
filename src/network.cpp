@@ -109,8 +109,6 @@ Matrix Network::Layer::forward(const Matrix& X) {
 
 Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double learning_rate) {
     Matrix dZ;
-    Matrix dbiases(outputSize, 1);
-
     if (actType == Activations::ActivationType::SOFTMAX) {
         dZ = dA;
     } else {
@@ -120,8 +118,9 @@ Matrix Network::Layer::backward(const Matrix& dA, size_t batch_size, double lear
         dZ = dA.hadamard(sigma_prime);
     }
 
-    Matrix dWeights = (1.0 / batch_size) * (dZ * input.transpose());
-    dbiases = dZ.sumCols();
+    Matrix dWeights = dZ * input.transpose();
+    Matrix dbiases = dZ.sumCols();
+    dWeights /= batch_size;
     dbiases /= batch_size;
 
     Matrix dA_return = weights.transpose() * dZ;
@@ -162,10 +161,9 @@ Matrix Network::forward(const Matrix& X) {
 }
 
 void Network::backward(const Matrix& y_true, double learning_rate) {
-    Matrix dA(y_true.getRows(), y_true.getCols());
     size_t batch_size = y_true.getCols();
 
-    dA = lastOutput - y_true;
+    Matrix dA = lastOutput - y_true;
 
     for (int i = static_cast<int>(layers.size()) - 1; i >= 0; --i) {
         dA = layers[i].backward(dA, batch_size, learning_rate);
