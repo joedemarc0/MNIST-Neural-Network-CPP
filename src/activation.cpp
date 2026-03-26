@@ -9,28 +9,29 @@ Matrix Activations::activate(const Matrix& x, ActivationType type) {
     switch(type) {
         case ActivationType::RELU: return x.apply([](double v) { return std::max(0.0, v); });
         case ActivationType::LEAKY_RELU: {
-            double alpha = 0.01; 
+            constexpr double alpha = 0.01;
             return x.apply([alpha](double v) { return v > 0.0 ? v : alpha * v; });
         }
 
         case ActivationType::SOFTMAX: {
-            size_t rows = x.getRows(); size_t cols = x.getCols();
+            size_t rows = x.getRows();
+            size_t cols = x.getCols();
             Matrix result(rows, cols);
+            const double* __restrict src = x.dataPtr();
+            double* __restrict dst = result.dataPtr();
 
             for (size_t j = 0; j < cols; ++j) {
-                double max_val = x.at(0, j);
-                for (size_t i = 1; i < rows; ++i) if (x.at(i, j) > max_val) max_val = x.at(i, j);
+                double max_val = src[j];
+                for (size_t i = 1; i < rows; ++i) if (src[i * cols + j] > max_val) max_val = src[i * cols + j];
 
                 double exp_sum = 0.0;
                 for (size_t i = 0; i < rows; ++i) {
-                    result.at(i, j) = std::exp(x.at(i, j) - max_val);
-                    exp_sum += result.at(i, j);
+                    dst[i * cols + j] = std::exp(src[i * cols + j] - max_val);
+                    exp_sum += dst[i * cols + j];
                 }
 
-                for (size_t i = 0; i < rows; ++i) {
-                    result.at(i, j) /= exp_sum;
-                    result.at(i, j) = std::max(result.at(i, j), 1e-12);
-                }
+                const double inv_sum = 1.0 / exp_sum;
+                for (size_t i = 0; i < rows; ++i) dst[i * cols + j] = std::max(dst[i * cols + j] * inv_sum, 1e-12);
             }
 
             return result;
@@ -44,12 +45,8 @@ Matrix Activations::deriv_activate(const Matrix& x, ActivationType type) {
     switch(type) {
         case ActivationType::RELU: return x.apply([](double v) { return v > 0.0 ? 1.0 : 0.0; });
         case ActivationType::LEAKY_RELU: {
-            double alpha = 0.01;
+            constexpr double alpha = 0.01;
             return x.apply([alpha](double v) {return v > 0.0 ? 1.0 : alpha; });
-        }
-
-        case ActivationType::SOFTMAX: {
-            throw std::invalid_argument("My name is Tonka Jahari but I would never order a whole pizza to myself...");
         }
 
         default: throw std::runtime_error("Activation type unspecified");
