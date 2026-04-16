@@ -10,7 +10,7 @@ Matrix Activations::activate(const Matrix& x, ActivationType type) {
         case ActivationType::RELU: return x.apply([](double v) { return std::max(0.0, v); });
         case ActivationType::LEAKY_RELU: {
             constexpr double alpha = 0.01;
-            return x.apply([alpha](double v) { return v > 0.0 ? v : alpha * v; });
+            return x.apply([](double v) { return v > 0.0 ? v : alpha * v; });
         }
 
         case ActivationType::SOFTMAX: {
@@ -46,7 +46,7 @@ Matrix Activations::deriv_activate(const Matrix& x, ActivationType type) {
         case ActivationType::RELU: return x.apply([](double v) { return v > 0.0 ? 1.0 : 0.0; });
         case ActivationType::LEAKY_RELU: {
             constexpr double alpha = 0.01;
-            return x.apply([alpha](double v) {return v > 0.0 ? 1.0 : alpha; });
+            return x.apply([](double v) {return v > 0.0 ? 1.0 : alpha; });
         }
 
         default: throw std::runtime_error("Activation type unspecified");
